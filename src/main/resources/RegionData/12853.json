@@ -81,50 +81,6 @@
       "idleAnimation": "HumanIdle"
     },
     {
-      "name": "Alexander",
-      "examineText": "Looks like a nice chap.",
-      "remarks": [
-        "Oi!"
-      ],
-      "uuid": "a6dea8a5-95df-4d89-b2f3-c6e80a0d3933",
-      "regionId": 12853,
-      "entityType": "StationaryCitizen",
-      "worldLocation": {
-        "x": 3216,
-        "y": 3402,
-        "plane": 0
-      },
-      "modelIds": [
-        6364,
-        391,
-        244,
-        246,
-        28515,
-        4391,
-        26632,
-        54275,
-        28512,
-        185
-      ],
-      "baseOrientation": 1024,
-      "translate": [
-        0.0,
-        -0.2,
-        0.0
-      ],
-      "modelRecolorFind": [
-        8741,
-        25238,
-        4550
-      ],
-      "modelRecolorReplace": [
-        6447,
-        6932,
-        4541
-      ],
-      "idleAnimation": "Sitting"
-    },
-    {
       "name": "Smithing apprentice",
       "examineText": "A smith in training.",
       "remarks": [
@@ -288,45 +244,6 @@
         10539
       ],
       "idleAnimation": "DwarfLean"
-    },
-    {
-      "name": "Ali",
-      "examineText": "He looks like he\u0027s from Al-Kharid.",
-      "remarks": [],
-      "uuid": "ee3c3e90-7fe5-4387-a976-74463163dab7",
-      "regionId": 12853,
-      "entityType": "StationaryCitizen",
-      "worldLocation": {
-        "x": 3217,
-        "y": 3408,
-        "plane": 0
-      },
-      "modelIds": [
-        6086,
-        249,
-        28515,
-        26619,
-        54275,
-        185,
-        176
-      ],
-      "baseOrientation": 0,
-      "translate": [
-        0.0,
-        -0.2,
-        0.0
-      ],
-      "modelRecolorFind": [
-        8741,
-        25238,
-        4550
-      ],
-      "modelRecolorReplace": [
-        10351,
-        10351,
-        5555
-      ],
-      "idleAnimation": "Sitting"
     },
     {
       "name": "Joe the tramp",
@@ -1674,6 +1591,128 @@
       "modelRecolorFind": [],
       "modelRecolorReplace": [],
       "idleAnimation": "Sitting"
+    },
+    {
+      "name": "Ali",
+      "examineText": "He looks like he\u0027s from Al-Kharid.",
+      "remarks": [],
+      "moveAnimation": "HumanWalk",
+      "uuid": "ee3c3e90-7fe5-4387-a976-74463163dab7",
+      "regionId": 12853,
+      "entityType": "StationaryCitizen",
+      "worldLocation": {
+        "x": 3217,
+        "y": 3408,
+        "plane": 0
+      },
+      "modelIds": [
+        6086,
+        249,
+        28515,
+        26619,
+        28285,
+        185,
+        176
+      ],
+      "baseOrientation": 0,
+      "translate": [
+        0.0,
+        -0.2,
+        0.0
+      ],
+      "modelRecolorFind": [
+        8741,
+        25238,
+        4550
+      ],
+      "modelRecolorReplace": [
+        10351,
+        10351,
+        5555
+      ],
+      "idleAnimation": "Sitting"
+    },
+    {
+      "name": "Alexander",
+      "examineText": "Looks like a nice chap.",
+      "remarks": [
+        "Oi!"
+      ],
+      "moveAnimation": "HumanWalk",
+      "uuid": "a6dea8a5-95df-4d89-b2f3-c6e80a0d3933",
+      "regionId": 12853,
+      "entityType": "StationaryCitizen",
+      "worldLocation": {
+        "x": 3216,
+        "y": 3402,
+        "plane": 0
+      },
+      "modelIds": [
+        6364,
+        215,
+        244,
+        246,
+        28515,
+        4391,
+        26632,
+        10218,
+        28337,
+        185
+      ],
+      "baseOrientation": 1024,
+      "translate": [
+        0.0,
+        -0.25,
+        0.0
+      ],
+      "modelRecolorFind": [
+        8741,
+        25238,
+        4550
+      ],
+      "modelRecolorReplace": [
+        6447,
+        6932,
+        4541
+      ],
+      "idleAnimation": "Sitting"
+    },
+    {
+      "name": "Joe the tramp",
+      "examineText": "He\u0027s had better days.",
+      "remarks": [
+        "Love is cruel...",
+        "I\u0027m not homeless... I\u0027m heartless...",
+        "I don\u0027t move",
+        " yet I\u0027m lost..."
+      ],
+      "moveAnimation": "HumanWalk",
+      "uuid": "60997f90-dfef-445b-bd2a-b7a88a3c7842",
+      "regionId": 12853,
+      "entityType": "StationaryCitizen",
+      "worldLocation": {
+        "x": 3202,
+        "y": 3394,
+        "plane": 0
+      },
+      "modelIds": [
+        214,
+        246,
+        28515,
+        26630,
+        177,
+        18131,
+        18128
+      ],
+      "baseOrientation": 0,
+      "translate": [
+        0.0,
+        -0.1,
+        0.0
+      ],
+      "modelRecolorFind": [],
+      "modelRecolorReplace": [],
+      "idleAnimation": "CurledUp"
     }
   ],
   "sceneryRoster": [

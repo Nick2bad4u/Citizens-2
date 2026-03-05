@@ -3,81 +3,6 @@
   "regionId": 12852,
   "citizenRoster": [
     {
-      "name": "Liam",
-      "examineText": "A child.",
-      "remarks": [],
-      "uuid": "6310e2d1-493c-45e2-aa06-6396d35b6fb1",
-      "regionId": 12852,
-      "entityType": "StationaryCitizen",
-      "worldLocation": {
-        "x": 3215,
-        "y": 3389,
-        "plane": 0
-      },
-      "modelIds": [
-        56138,
-        56179,
-        56164
-      ],
-      "modelRecolorFind": [
-        22424,
-        11162,
-        6550
-      ],
-      "modelRecolorReplace": [
-        51088,
-        4,
-        5027
-      ],
-      "idleAnimation": "ChildIdle"
-    },
-    {
-      "name": "Mary",
-      "examineText": "She has her hands full with those kids.",
-      "remarks": [],
-      "moveAnimation": "HumanWalk",
-      "wanderBoxBL": {
-        "x": 3218,
-        "y": 3387,
-        "plane": 0
-      },
-      "wanderBoxTR": {
-        "x": 3222,
-        "y": 3387,
-        "plane": 0
-      },
-      "uuid": "23614232-2402-44ea-bc68-153c533fdb83",
-      "regionId": 12852,
-      "entityType": "WanderingCitizen",
-      "worldLocation": {
-        "x": 3222,
-        "y": 3387,
-        "plane": 0
-      },
-      "modelIds": [
-        390,
-        18554,
-        483,
-        3476,
-        353,
-        14395,
-        14395
-      ],
-      "modelRecolorFind": [
-        8741,
-        25238,
-        6798,
-        43072
-      ],
-      "modelRecolorReplace": [
-        322,
-        5532,
-        8099,
-        4550
-      ],
-      "idleAnimation": "HumanIdle"
-    },
-    {
       "name": "Oliver",
       "examineText": "A child.",
       "remarks": [],
@@ -112,7 +37,7 @@
     },
     {
       "name": "Master Thief",
-      "examineText": "He know's what he's doing.",
+      "examineText": "He know\u0027s what he\u0027s doing.",
       "remarks": [],
       "uuid": "b7b58305-0904-41ec-b2e8-5ce2ba9b6a19",
       "regionId": 12852,
@@ -162,48 +87,6 @@
       "idleAnimation": "HumanIdle"
     },
     {
-      "name": "Nick",
-      "examineText": "Up to no good.",
-      "remarks": [
-        "We need timing and precision.",
-        "What if we get caught?",
-        "We should hire a mage to blast the lock open."
-      ],
-      "uuid": "025d8c03-09f9-491d-9c7f-5b98ad9e2035",
-      "regionId": 12852,
-      "entityType": "StationaryCitizen",
-      "worldLocation": {
-        "x": 3203,
-        "y": 3387,
-        "plane": 0
-      },
-      "modelIds": [
-        208,
-        10304,
-        25675,
-        317,
-        25643,
-        25652,
-        25668,
-        25650
-      ],
-      "baseOrientation": 0,
-      "modelRecolorFind": [
-        7952,
-        8741
-      ],
-      "modelRecolorReplace": [
-        38156,
-        38160
-      ],
-      "idleAnimation": "Sitting",
-      "translate": [
-        0.0,
-        -0.2,
-        0.0
-      ]
-    },
-    {
       "name": "Henry",
       "examineText": "A child.",
       "remarks": [],
@@ -225,49 +108,6 @@
       "modelRecolorFind": [],
       "modelRecolorReplace": [],
       "idleAnimation": "ChildPlay2"
-    },
-    {
-      "name": "Jo",
-      "examineText": "An inexperienced, young thief.",
-      "remarks": [
-        "Are you sure about this?",
-        "A vault is basically a big chest, right?"
-      ],
-      "uuid": "cdbcb720-96a2-44db-b176-fc9a41990a10",
-      "regionId": 12852,
-      "entityType": "StationaryCitizen",
-      "worldLocation": {
-        "x": 3204,
-        "y": 3386,
-        "plane": 0
-      },
-      "modelIds": [
-        391,
-        228,
-        246,
-        28515,
-        27139,
-        26619,
-        179,
-        54275,
-        185,
-        317
-      ],
-      "baseOrientation": 512,
-      "modelRecolorFind": [
-        25238,
-        8741
-      ],
-      "modelRecolorReplace": [
-        3486,
-        8728
-      ],
-      "idleAnimation": "Sitting",
-      "translate": [
-        0.0,
-        -0.2,
-        0.0
-      ]
     },
     {
       "name": "Chicken",
@@ -328,6 +168,11 @@
         26630
       ],
       "baseOrientation": 0,
+      "translate": [
+        0.0,
+        -0.2,
+        0.0
+      ],
       "modelRecolorFind": [
         25238,
         8741,
@@ -344,12 +189,7 @@
         8472,
         35908
       ],
-      "idleAnimation": "Sitting",
-      "translate": [
-        0.0,
-        -0.2,
-        0.0
-      ]
+      "idleAnimation": "Sitting"
     },
     {
       "name": "Lector Argus",
@@ -385,6 +225,7 @@
     {
       "name": "Krazok",
       "examineText": "Evil beyond our worst nightmares.",
+      "remarks": [],
       "moveAnimation": "HumanWalk",
       "wanderBoxBL": {
         "x": 3254,
@@ -427,6 +268,177 @@
         103
       ],
       "idleAnimation": "HumanIdle"
+    },
+    {
+      "name": "Liam",
+      "examineText": "A child.",
+      "remarks": [],
+      "moveAnimationRawId": 12042,
+      "uuid": "6310e2d1-493c-45e2-aa06-6396d35b6fb1",
+      "regionId": 12852,
+      "entityType": "StationaryCitizen",
+      "worldLocation": {
+        "x": 3215,
+        "y": 3389,
+        "plane": 0
+      },
+      "modelIds": [
+        56138,
+        56179,
+        56167
+      ],
+      "baseOrientation": 0,
+      "modelRecolorFind": [
+        22424,
+        11162,
+        6550
+      ],
+      "modelRecolorReplace": [
+        51088,
+        4,
+        5027
+      ],
+      "idleAnimationRawId": 2331
+    },
+    {
+      "name": "Mary",
+      "examineText": "She has her hands full with those kids.",
+      "remarks": [],
+      "moveAnimation": "HumanWalk",
+      "moveAnimationRawId": 819,
+      "wanderBoxBL": {
+        "x": 3218,
+        "y": 3387,
+        "plane": 0
+      },
+      "wanderBoxTR": {
+        "x": 3222,
+        "y": 3387,
+        "plane": 0
+      },
+      "uuid": "23614232-2402-44ea-bc68-153c533fdb83",
+      "regionId": 12852,
+      "entityType": "WanderingCitizen",
+      "worldLocation": {
+        "x": 3222,
+        "y": 3387,
+        "plane": 0
+      },
+      "modelIds": [
+        390,
+        18554,
+        483,
+        3476,
+        353,
+        14395,
+        358,
+        437
+      ],
+      "baseOrientation": 512,
+      "modelRecolorFind": [
+        8741,
+        25238,
+        6798,
+        43072
+      ],
+      "modelRecolorReplace": [
+        322,
+        5532,
+        8099,
+        4550
+      ],
+      "idleAnimation": "HumanIdle",
+      "idleAnimationRawId": 808
+    },
+    {
+      "name": "Nick",
+      "examineText": "Up to no good.",
+      "remarks": [
+        "We need timing and precision.",
+        "What if we get caught?",
+        "We should hire a mage to blast the lock open."
+      ],
+      "moveAnimation": "HumanWalk",
+      "moveAnimationRawId": 819,
+      "uuid": "025d8c03-09f9-491d-9c7f-5b98ad9e2035",
+      "regionId": 12852,
+      "entityType": "StationaryCitizen",
+      "worldLocation": {
+        "x": 3203,
+        "y": 3387,
+        "plane": 0
+      },
+      "modelIds": [
+        208,
+        10304,
+        25675,
+        317,
+        25643,
+        25652,
+        25668,
+        25650
+      ],
+      "baseOrientation": 0,
+      "translate": [
+        0.0,
+        -0.2,
+        0.1
+      ],
+      "modelRecolorFind": [
+        7952,
+        8741
+      ],
+      "modelRecolorReplace": [
+        38156,
+        38160
+      ],
+      "idleAnimation": "Sitting",
+      "idleAnimationRawId": 4114
+    },
+    {
+      "name": "Jo",
+      "examineText": "An inexperienced, young thief.",
+      "remarks": [
+        "Are you sure about this?",
+        "A vault is basically a big chest",
+        " right?"
+      ],
+      "moveAnimation": "HumanWalk",
+      "uuid": "cdbcb720-96a2-44db-b176-fc9a41990a10",
+      "regionId": 12852,
+      "entityType": "StationaryCitizen",
+      "worldLocation": {
+        "x": 3204,
+        "y": 3386,
+        "plane": 0
+      },
+      "modelIds": [
+        215,
+        228,
+        246,
+        28515,
+        326,
+        26619,
+        179,
+        28285,
+        185,
+        317
+      ],
+      "baseOrientation": 512,
+      "translate": [
+        0.0,
+        -0.2,
+        0.1
+      ],
+      "modelRecolorFind": [
+        25238,
+        8741
+      ],
+      "modelRecolorReplace": [
+        3654,
+        3652
+      ],
+      "idleAnimation": "Sitting"
     }
   ],
   "sceneryRoster": [
@@ -582,8 +594,8 @@
       ],
       "translate": [
         -0.5,
-        0,
-        0
+        0.0,
+        0.0
       ],
       "modelRecolorFind": [],
       "modelRecolorReplace": [],
@@ -620,8 +632,8 @@
       ],
       "baseOrientation": 0,
       "translate": [
-        0,
-        0,
+        0.0,
+        0.0,
         0.4
       ],
       "modelRecolorFind": [],
@@ -648,7 +660,7 @@
       ],
       "translate": [
         -0.3,
-        0,
+        0.0,
         0.1
       ],
       "modelRecolorFind": [],

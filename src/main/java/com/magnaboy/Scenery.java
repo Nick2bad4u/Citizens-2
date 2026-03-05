@@ -2,7 +2,7 @@ package com.magnaboy;
 
 public class Scenery extends Entity<Scenery> {
 
-	public Scenery(CitizensPlugin plugin) {
+	public Scenery(Citizens2Plugin plugin) {
 		super(plugin);
 		entityType = EntityType.Scenery;
 	}

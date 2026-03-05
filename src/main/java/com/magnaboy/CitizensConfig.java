@@ -5,7 +5,7 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.Range;
 
-@ConfigGroup("citizens")
+@ConfigGroup("citizens2")
 public interface CitizensConfig extends Config {
 	@Range(
 		min = -128,

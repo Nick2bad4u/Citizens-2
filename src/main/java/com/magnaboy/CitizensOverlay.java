@@ -7,10 +7,12 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
 import javax.inject.Inject;
+import net.runelite.api.Client;
+import net.runelite.api.Model;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;
+import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
-import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.JagexColors;
@@ -21,33 +23,38 @@ import net.runelite.client.ui.overlay.OverlayUtil;
 import net.runelite.client.ui.overlay.outline.ModelOutlineRenderer;
 
 public class CitizensOverlay extends Overlay {
-	private final CitizensPlugin plugin;
+	private final Citizens2Plugin plugin;
 	private final ModelOutlineRenderer modelOutlineRenderer;
 
 	Font overheadFont = FontManager.getRunescapeBoldFont();
 
 	@Inject
-	public CitizensOverlay(CitizensPlugin plugin, ModelOutlineRenderer modelOutlineRenderer) {
+	public CitizensOverlay(Citizens2Plugin plugin, ModelOutlineRenderer modelOutlineRenderer) {
 		this.modelOutlineRenderer = modelOutlineRenderer;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_SCENE);
 		this.plugin = plugin;
 	}
 
-	private void renderText(Graphics2D graphics, LocalPoint lp, String text) {
-		if (!plugin.IS_DEVELOPMENT) {
+	private void renderText(Graphics2D graphics, LocalPoint lp, String text, Color color) {
+		if (!plugin.IS_DEVELOPMENT || lp == null) {
 			return;
 		}
-		renderText(graphics, lp, text, new Color(0, 255, 3));
-	}
 
-	private void renderText(Graphics2D graphics, LocalPoint lp, String text, Color color) {
+		Client client = plugin.client;
+		if (client == null) {
+			return;
+		}
+
+		WorldView worldView = client.getTopLevelWorldView();
+		if (worldView == null) {
+			return;
+		}
+
 		Font overheadFont = FontManager.getRunescapeSmallFont();
 		graphics.setFont(overheadFont);
 
-		Point p = Perspective.localToCanvas(plugin.client, lp, plugin
-			.client
-			.getPlane(), 0);
+		Point p = Perspective.localToCanvas(client, lp, worldView.getPlane(), 0);
 		if (p == null) {
 			return;
 		}
@@ -63,7 +70,13 @@ public class CitizensOverlay extends Overlay {
 		if (!plugin.IS_DEVELOPMENT) {
 			return;
 		}
-		final Polygon poly = Perspective.getCanvasTilePoly(plugin.client, lp);
+
+		Client client = plugin.client;
+		if (client == null) {
+			return;
+		}
+
+		final Polygon poly = Perspective.getCanvasTilePoly(client, lp);
 		if (poly != null) {
 			OverlayUtil.renderPolygon(graphics, poly, color);
 		}
@@ -73,41 +86,47 @@ public class CitizensOverlay extends Overlay {
 		if (!plugin.IS_DEVELOPMENT) {
 			return;
 		}
-		LocalPoint lp = LocalPoint.fromWorld(plugin.client, wp);
+
+		Client client = plugin.client;
+		if (client == null) {
+			return;
+		}
+
+		WorldView worldView = client.getTopLevelWorldView();
+		if (worldView == null) {
+			return;
+		}
+
+		LocalPoint lp = LocalPoint.fromWorld(worldView, wp);
 		if (lp == null) {
 			return;
 		}
-		final Polygon poly = Perspective.getCanvasTilePoly(plugin.client, lp);
+		final Polygon poly = Perspective.getCanvasTilePoly(client, lp);
 		if (poly != null) {
 			OverlayUtil.renderPolygon(graphics, poly, color);
 		}
 	}
 
-	private void highlightRegion(Graphics2D graphics, WorldPoint bottomLeft, WorldPoint topRight, int plane, Color color) {
-		WorldArea boundingBox = Util.calculateBoundingBox(bottomLeft, topRight);
-		highlightRegion(graphics, boundingBox, plane, color);
-	}
-
-	private void highlightRegion(Graphics2D graphics, WorldArea boundingBox, int plane, Color color) {
-		int x = boundingBox.getX();
-		int y = boundingBox.getY();
-		for (int i = y; i <= y + boundingBox.getHeight(); i++) {
-			for (int t = 0; t <= boundingBox.getWidth(); t++) {
-				highlightTile(graphics, new WorldPoint(x + t, i, plane), color);
-			}
-		}
-	}
-
 	@Override
 	public Dimension render(Graphics2D graphics) {
-		if (CitizensPlugin.shuttingDown) {
+		if (Citizens2Plugin.shuttingDown) {
+			return null;
+		}
+
+		Client client = plugin.client;
+		if (client == null) {
+			return null;
+		}
+
+		WorldView worldView = client.getTopLevelWorldView();
+		if (worldView == null) {
 			return null;
 		}
 
 		if (CitizenPanel.selectedPosition != null) {
 			Color selectedColor = new Color(0, 255, 255, 200);
 			highlightTile(graphics, CitizenPanel.selectedPosition, selectedColor);
-			LocalPoint lp = LocalPoint.fromWorld(plugin.client, CitizenPanel.selectedPosition);
+			LocalPoint lp = LocalPoint.fromWorld(worldView, CitizenPanel.selectedPosition);
 			if (plugin.IS_DEVELOPMENT && lp != null) {
 				renderText(graphics, lp, "Selected Tile", selectedColor);
 			}
@@ -123,7 +142,7 @@ public class CitizensOverlay extends Overlay {
 				return;
 			}
 
-			Citizen citizen = (Citizen) entity;
+			Citizen<?> citizen = (Citizen<?>) entity;
 			LocalPoint localLocation = citizen.getLocalLocation();
 
 			if (!citizen.shouldRender() || localLocation == null) {
@@ -132,10 +151,12 @@ public class CitizensOverlay extends Overlay {
 
 			// Render remarks
 			if (citizen.activeRemark != null) {
-				Point p = Perspective.localToCanvas(plugin.client, citizen.getLocalLocation(), plugin
-					.client
-					.getPlane(), citizen
-					.rlObject.getModel().getModelHeight());
+				Model model = citizen.rlObject.getModel();
+				if (model == null) {
+					return;
+				}
+
+				Point p = Perspective.localToCanvas(client, localLocation, worldView.getPlane(), model.getModelHeight());
 				if (p != null) {
 					graphics.setFont(overheadFont);
 					FontMetrics metrics = graphics.getFontMetrics(overheadFont);
@@ -146,6 +167,8 @@ public class CitizensOverlay extends Overlay {
 			}
 
 			if (plugin.IS_DEVELOPMENT && citizen.distanceToPlayer() < 15) {
+				Model model = citizen.rlObject.getModel();
+				int modelHeight = model == null ? 0 : model.getModelHeight();
 				String extraString = "";
 				if (citizen.entityType == EntityType.ScriptedCitizen) {
 					ScriptedCitizen scriptedCitizen = (ScriptedCitizen) citizen;
@@ -153,7 +176,7 @@ public class CitizensOverlay extends Overlay {
 						extraString = scriptedCitizen.currentAction.action + " ";
 					}
 				}
-				String debugText = citizen.debugName() + " " + extraString + "H:" + citizen.rlObject.getModel().getModelHeight() + " ";
+				String debugText = citizen.debugName() + " " + extraString + "H:" + modelHeight + " ";
 				renderText(graphics, localLocation, debugText, JagexColors.YELLOW_INTERFACE_TEXT);
 				Citizen.Target target = citizen.getCurrentTarget();
 				if (target != null) {

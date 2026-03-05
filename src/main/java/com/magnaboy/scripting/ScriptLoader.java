@@ -1,7 +1,7 @@
 package com.magnaboy.scripting;
 
 import com.google.gson.Gson;
-import com.magnaboy.CitizensPlugin;
+import com.magnaboy.Citizens2Plugin;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,7 +15,7 @@ public final class ScriptLoader {
 	private ScriptLoader() {
 	}
 
-	public static ScriptFile loadScript(CitizensPlugin plugin, String scriptName) {
+	public static ScriptFile loadScript(Citizens2Plugin plugin, String scriptName) {
 		if (scriptCache.containsKey(scriptName)) {
 			return scriptCache.get(scriptName);
 		}

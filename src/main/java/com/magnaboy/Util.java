@@ -16,11 +16,10 @@ import net.runelite.api.coords.WorldPoint;
 public final class Util {
 	public final static int JAU_FULL_ROTATION = 2048;
 	public final static int MAX_ENTITY_RENDER_DISTANCE = 25;
-	private final static String animDataFilePath = "src/main/resources/animationData.json";
 	public static Random rng = new Random();
 	private static Map<String, AnimData> animData;
 
-	public static void initAnimationData(CitizensPlugin plugin) {
+	public static void initAnimationData(Citizens2Plugin plugin) {
 		try (InputStream inputStream = plugin.getClass().getResourceAsStream("/animationData.json");
 			 Reader reader = new BufferedReader(new InputStreamReader(inputStream))) {
 			Type type = new TypeToken<Map<String, AnimData>>() {

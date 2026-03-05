@@ -50,8 +50,8 @@ import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.ImageUtil;
 
 @Slf4j
-@PluginDescriptor(name = "Citizens", description = "Adds citizens to help bring life to the world")
-public class CitizensPlugin extends Plugin {
+@PluginDescriptor(name = "Citizens 2", description = "Adds citizens to help bring life to the world")
+public class Citizens2Plugin extends Plugin {
 	public static HashMap<Integer, CitizenRegion> activeRegions = new HashMap<>();
 	public static boolean shuttingDown;
 	@Inject
@@ -60,7 +60,10 @@ public class CitizensPlugin extends Plugin {
 	public ClientThread clientThread;
 	public CitizenPanel panel;
 
-	public boolean IS_DEVELOPMENT = Boolean.getBoolean("citizens.development")
+	public boolean IS_DEVELOPMENT = Boolean.getBoolean("citizens2.development")
+		|| Boolean.getBoolean("citizens2.dev")
+		|| "true".equalsIgnoreCase(System.getenv("CITIZENS2_DEVELOPMENT"))
+		|| Boolean.getBoolean("citizens.development")
 		|| Boolean.getBoolean("citizens.dev")
 		|| "true".equalsIgnoreCase(System.getenv("CITIZENS_DEVELOPMENT"));
 	public boolean entitiesAreReady = false;
@@ -91,8 +94,8 @@ public class CitizensPlugin extends Plugin {
 
 	@Override
 	protected void startUp() {
-		log.info("Citizens starting up (gameState={}, devMode={})", client.getGameState(), IS_DEVELOPMENT);
-		log.info("Citizens offsets: baseHeightOffset={}, debugAirlift={}, debugAirliftOffset={}",
+		log.info("Citizens 2 starting up (gameState={}, devMode={})", client.getGameState(), IS_DEVELOPMENT);
+		log.info("Citizens 2 offsets: baseHeightOffset={}, debugAirlift={}, debugAirliftOffset={}",
 			config.citizenHeightOffset(),
 			config.debugAirliftCitizens(),
 			config.debugAirliftOffset());
@@ -105,9 +108,9 @@ public class CitizensPlugin extends Plugin {
 		// For now, the only thing in the panel is dev stuff
 		if (IS_DEVELOPMENT) {
 			// Add to sidebar
-			final BufferedImage icon = ImageUtil.loadImageResource(CitizensPlugin.class, "/citizens_icon.png");
+			final BufferedImage icon = ImageUtil.loadImageResource(Citizens2Plugin.class, "/citizens_icon.png");
 			navButton = NavigationButton.builder()
-				.tooltip("Citizens")
+				.tooltip("Citizens 2")
 				.icon(icon)
 				.priority(7)
 				.panel(panel)
@@ -119,7 +122,7 @@ public class CitizensPlugin extends Plugin {
 			checkRegions();
 			CitizenRegion.updateAllEntities();
 		} else {
-			log.info("Citizens waiting for LOGGED_IN before region load");
+			log.info("Citizens 2 waiting for LOGGED_IN before region load");
 		}
 		Util.initAnimationData(this);
 	}
@@ -233,7 +236,7 @@ public class CitizensPlugin extends Plugin {
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged) {
 		GameState newState = gameStateChanged.getGameState();
-		log.debug("Citizens observed game state change to {}", newState);
+		log.debug("Citizens 2 observed game state change to {}", newState);
 
 		if (newState == GameState.LOGGED_IN) {
 			checkRegions();
@@ -282,7 +285,7 @@ public class CitizensPlugin extends Plugin {
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event) {
-		if (!"citizens".equals(event.getGroup())) {
+		if (!"citizens2".equals(event.getGroup()) && !"citizens".equals(event.getGroup())) {
 			return;
 		}
 
@@ -296,7 +299,7 @@ public class CitizensPlugin extends Plugin {
 		clientThread.invokeLater(() -> {
 			despawnAll();
 			CitizenRegion.updateAllEntities();
-			log.info("Citizens offsets applied: baseHeightOffset={}, debugAirlift={}, debugAirliftOffset={}",
+			log.info("Citizens 2 offsets applied: baseHeightOffset={}, debugAirlift={}, debugAirliftOffset={}",
 				config.citizenHeightOffset(),
 				config.debugAirliftCitizens(),
 				config.debugAirliftOffset());
@@ -434,13 +437,13 @@ public class CitizensPlugin extends Plugin {
 	private void checkRegions() {
 		WorldView worldView = client.getTopLevelWorldView();
 		if (worldView == null) {
-			log.warn("Citizens world view is null; cannot load citizen regions yet");
+			log.warn("Citizens 2 world view is null; cannot load citizen regions yet");
 			return;
 		}
 
 		int[] mapRegions = worldView.getMapRegions();
 		if (mapRegions == null) {
-			log.warn("Citizens map regions are null; cannot load citizen regions yet");
+			log.warn("Citizens 2 map regions are null; cannot load citizen regions yet");
 			return;
 		}
 
@@ -469,18 +472,18 @@ public class CitizensPlugin extends Plugin {
 			}
 		}
 		entitiesAreReady = true;
-		log.info("Citizens region scan complete: sceneRegions={}, activeRegions={}, newlyLoaded={}, entitiesLoaded={}",
+		log.info("Citizens 2 region scan complete: sceneRegions={}, activeRegions={}, newlyLoaded={}, entitiesLoaded={}",
 			loaded.size(),
 			activeRegions.size(),
 			newlyLoaded,
 			newlyLoadedEntities);
 
 		if (removed > 0) {
-			log.debug("Citizens pruned {} inactive regions from active set", removed);
+			log.debug("Citizens 2 pruned {} inactive regions from active set", removed);
 		}
 
 		if (activeRegions.isEmpty()) {
-			log.warn("Citizens has no active regions for current location");
+			log.warn("Citizens 2 has no active regions for current location");
 		}
 	}
 

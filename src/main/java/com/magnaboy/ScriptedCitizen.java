@@ -18,7 +18,7 @@ public class ScriptedCitizen extends Citizen<ScriptedCitizen> {
 	private ScriptFile script;
 	private ExecutorService scriptExecutor;
 
-	public ScriptedCitizen(CitizensPlugin plugin) {
+	public ScriptedCitizen(Citizens2Plugin plugin) {
 		super(plugin);
 		entityType = EntityType.ScriptedCitizen;
 	}

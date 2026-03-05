@@ -1,4 +1,4 @@
-# Citizens
+# Citizens 2
 
 > This plugin currently doesn't work because an update to OSRS broke it, and I don't know how to fix it. If you are interested in helping, you can find me (Magnaboy) in the runelite discord.
 

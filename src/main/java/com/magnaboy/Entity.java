@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.AABB;
 import net.runelite.api.Animation;
+import net.runelite.api.AnimationController;
 import net.runelite.api.Client;
 import net.runelite.api.GameObject;
 import net.runelite.api.Model;
@@ -30,7 +31,7 @@ public class Entity<T extends Entity<T>> {
 	public Integer regionId;
 	public String name;
 	public String examine;
-	public CitizensPlugin plugin;
+	public Citizens2Plugin plugin;
 	public AnimationID idleAnimationId;
 	public float[] scale;
 	public float[] translate;
@@ -51,7 +52,7 @@ public class Entity<T extends Entity<T>> {
 	private volatile boolean active;
 	private volatile boolean failed;
 
-	public Entity(CitizensPlugin plugin) {
+	public Entity(Citizens2Plugin plugin) {
 		this.plugin = plugin;
 		this.rlObject = plugin.client.createRuneLiteObject();
 	}
@@ -137,8 +138,23 @@ public class Entity<T extends Entity<T>> {
 	}
 
 	public int getAnimationID() {
-		Animation animation = rlObject.getAnimation();
+		Animation animation = getCurrentAnimation();
 		return animation == null ? -1 : animation.getId();
+	}
+
+	protected final Animation getCurrentAnimation() {
+		AnimationController animationController = rlObject.getAnimationController();
+		if (animationController != null) {
+			return animationController.getAnimation();
+		}
+
+		AnimationController poseAnimationController = rlObject.getPoseAnimationController();
+		return poseAnimationController == null ? null : poseAnimationController.getAnimation();
+	}
+
+	@SuppressWarnings("unchecked")
+	protected final T self() {
+		return (T) this;
 	}
 
 	public boolean isCitizen() {
@@ -146,17 +162,18 @@ public class Entity<T extends Entity<T>> {
 	}
 
 	public SimplePolygon getClickbox() {
+		Client client = Objects.requireNonNull(plugin.client, "plugin client not initialized");
 		LocalPoint location = getLocalLocation();
 		if (location == null || rlObject.getModel() == null) {
 			return null;
 		}
-		WorldView worldView = plugin.client.getTopLevelWorldView();
+		WorldView worldView = client.getTopLevelWorldView();
 		if (worldView == null) {
 			return null;
 		}
 		int plane = worldView.getPlane();
-		int zOff = Perspective.getTileHeight(plugin.client, location, plane);
-		return calculateAABB(plugin.client, rlObject.getModel(), rlObject.getOrientation(), location.getX(), location.getY(), plane, zOff);
+		int zOff = Perspective.getTileHeight(client, location, plane);
+		return calculateAABB(client, rlObject.getModel(), rlObject.getOrientation(), location.getX(), location.getY(), plane, zOff);
 	}
 
 	public LocalPoint getLocalLocation() {
@@ -187,17 +204,17 @@ public class Entity<T extends Entity<T>> {
 
 	public T setWorldLocation(WorldPoint location) {
 		this.worldLocation = location;
-		return (T) this;
+		return self();
 	}
 
 	public T setObjectToRemove(Integer objectToRemove) {
 		this.objectToRemove = objectToRemove;
-		return (T) this;
+		return self();
 	}
 
 	public T addMergedObject(MergedObject mergedObject) {
 		this.mergedObjects.add(mergedObject);
-		return (T) this;
+		return self();
 	}
 
 	public void update() {
@@ -216,43 +233,43 @@ public class Entity<T extends Entity<T>> {
 
 	public T setScale(float[] scale) {
 		this.scale = scale;
-		return (T) this;
+		return self();
 	}
 
 	public T setTranslate(float translateX, float translateY, float translateZ) {
 		this.translate = new float[]{translateX, translateY, translateZ};
-		return (T) this;
+		return self();
 	}
 
 	public T setTranslate(float[] translate) {
 		this.translate = translate;
-		return (T) this;
+		return self();
 	}
 
 	public T setHeightOffset(Integer heightOffset) {
 		this.heightOffset = heightOffset;
-		return (T) this;
+		return self();
 	}
 
 	public T setBaseOrientation(CardinalDirection baseOrientation) {
 		this.baseOrientation = baseOrientation.getAngle();
-		return (T) this;
+		return self();
 	}
 
 	public T setBaseOrientation(Integer baseOrientation) {
 		this.baseOrientation = baseOrientation;
-		return (T) this;
+		return self();
 	}
 
 	public T setModelIDs(int[] modelIDs) {
 		this.modelIDs = modelIDs;
-		return (T) this;
+		return self();
 	}
 
 	public T setModelRecolors(int[] recolorsToFind, int[] recolorsToReplace) {
 		this.recolorsToFind = recolorsToFind;
 		this.recolorsToReplace = recolorsToReplace;
-		return (T) this;
+		return self();
 	}
 
 	public T setLocation(LocalPoint location) {
@@ -282,7 +299,7 @@ public class Entity<T extends Entity<T>> {
 
 		WorldPoint wp = WorldPoint.fromLocal(plugin.client, location);
 		setWorldLocation(wp);
-		return (T) this;
+		return self();
 	}
 
 	public int getPlane() {
@@ -432,13 +449,11 @@ public class Entity<T extends Entity<T>> {
 			rlObject.setOrientation(baseOrientation);
 		}
 
-		Animation currentAnimation = rlObject.getAnimation();
+		Animation currentAnimation = getCurrentAnimation();
 		Integer idleAnimationValue = getConfiguredIdleAnimationValue();
 		if (idleAnimationValue != null && currentAnimation == null) {
 			setAnimation(idleAnimationValue);
 		}
-
-		rlObject.setShouldLoop(true);
 	}
 
 	public String debugName() {
@@ -542,24 +557,24 @@ public class Entity<T extends Entity<T>> {
 
 	public T setIdleAnimation(AnimationID idleAnimationId) {
 		this.idleAnimationId = idleAnimationId;
-		return (T) this;
+		return self();
 	}
 
 	public T setIdleAnimationRawId(Integer idleAnimationRawId) {
 		this.idleAnimationRawId = idleAnimationRawId;
-		return (T) this;
+		return self();
 	}
 
 	public T setUUID(UUID uuid) {
 		if (this.uuid == null) {
 			this.uuid = uuid;
 		}
-		return (T) this;
+		return self();
 	}
 
 	public T setRegion(int regionId) {
 		this.regionId = regionId;
-		return (T) this;
+		return self();
 	}
 
 	@Override
@@ -568,11 +583,11 @@ public class Entity<T extends Entity<T>> {
 			return true;
 		}
 
-		if (!(o instanceof Entity)) {
+		if (!(o instanceof Entity<?>)) {
 			return false;
 		}
 
-		Entity compare = (Entity) o;
+		Entity<?> compare = (Entity<?>) o;
 		return Objects.equals(this.uuid, compare.uuid);
 	}
 

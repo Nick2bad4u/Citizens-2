@@ -36,7 +36,7 @@ import net.runelite.client.ui.PluginPanel;
 class CitizenPanel extends PluginPanel {
 	private final static String RELOAD_BUTTON_READY = "Reload All Entites";
 	public static WorldPoint selectedPosition;
-	public static Entity selectedEntity;
+	public static Entity<?> selectedEntity;
 	public WorldPoint wanderRegionBL;
 	public WorldPoint wanderRegionTR;
 	public JLabel editingTargetLabel;
@@ -44,9 +44,8 @@ class CitizenPanel extends PluginPanel {
 	public JButton deleteButton;
 	public JLabel reloadWarning;
 	public JCheckBox manualFieldsToggle;
-	private CitizensPlugin plugin;
+	private Citizens2Plugin plugin;
 	private JLabel label;
-	private CitizensOverlay overlay;
 	// Editor Panel Fields
 	private HashSet<JComponent> allElements;
 	private JButton reloadButton;
@@ -78,9 +77,8 @@ class CitizenPanel extends PluginPanel {
 
 	// End Editor Fields
 
-	public void init(CitizensPlugin plugin, CitizensOverlay overlay) {
+	public void init(Citizens2Plugin plugin) {
 		this.plugin = plugin;
-		this.overlay = overlay;
 		final JPanel layoutPanel = new JPanel();
 		layoutPanel.setLayout(new GridBagLayout());
 		add(layoutPanel, BorderLayout.CENTER);
@@ -519,7 +517,7 @@ class CitizenPanel extends PluginPanel {
 					selectedEntity = scenery;
 				} else {
 					CitizenInfo info = buildCitizenInfo(selectedPosition.getRegionID(), selectedPosition);
-					Citizen citizen = CitizenRegion.spawnCitizenFromPanel(info);
+					Citizen<?> citizen = CitizenRegion.spawnCitizenFromPanel(info);
 					selectedEntity = citizen;
 				}
 				selectedPosition = null;
@@ -546,7 +544,7 @@ class CitizenPanel extends PluginPanel {
 					CitizenInfo info = buildCitizenInfo(selectedEntity.regionId, location);
 					info.uuid = selectedEntity.uuid;
 					CitizenRegion.updateEntity(info);
-					Entity refreshed = CitizenRegion.getEntity(info.regionId, info.uuid);
+					Entity<?> refreshed = CitizenRegion.getEntity(info.regionId, info.uuid);
 					if (refreshed != null) {
 						selectedEntity = null;
 						setSelectedEntity(refreshed);
@@ -555,7 +553,7 @@ class CitizenPanel extends PluginPanel {
 					SceneryInfo info = buildSceneryInfo(location);
 					info.uuid = selectedEntity.uuid;
 					CitizenRegion.updateEntity(info);
-					Entity refreshed = CitizenRegion.getEntity(info.regionId, info.uuid);
+					Entity<?> refreshed = CitizenRegion.getEntity(info.regionId, info.uuid);
 					if (refreshed != null) {
 						selectedEntity = null;
 						setSelectedEntity(refreshed);
@@ -867,7 +865,7 @@ class CitizenPanel extends PluginPanel {
 		return info;
 	}
 
-	private <T extends JComponent> T createLabeledComponent(JComponent component, String label, JPanel panel, GridBagConstraints constraints) {
+	private <T extends JComponent> T createLabeledComponent(T component, String label, JPanel panel, GridBagConstraints constraints) {
 		final JPanel container = new JPanel();
 		container.setLayout(new BorderLayout());
 
@@ -883,7 +881,7 @@ class CitizenPanel extends PluginPanel {
 		panel.add(container, constraints);
 		allElements.add(container);
 		allElements.add(component);
-		return (T) component;
+		return component;
 	}
 
 	//Creates multiple components under a single label
@@ -938,6 +936,13 @@ class CitizenPanel extends PluginPanel {
 				manualAnimIdMoveSelect.getParent().setVisible(checked);
 				break;
 
+			case WanderingCitizen:
+				animIdIdleSelect.getParent().setVisible(!checked);
+				animIdMoveSelect.getParent().setVisible(!checked);
+				manualAnimIdIdleSelect.getParent().setVisible(checked);
+				manualAnimIdMoveSelect.getParent().setVisible(checked);
+				break;
+
 			case Scenery:
 				entityNameField.getParent().setVisible(false);
 				examineTextField.getParent().setVisible(false);
@@ -955,7 +960,7 @@ class CitizenPanel extends PluginPanel {
 		}
 	}
 
-	public void setSelectedEntity(Entity e) {
+	public void setSelectedEntity(Entity<?> e) {
 		if (e == null) {
 			selectedEntity = null;
 			clearEditorFields();
@@ -1003,15 +1008,16 @@ class CitizenPanel extends PluginPanel {
 		heightOffsetField.setText(e.heightOffset == null ? "" : String.valueOf(e.heightOffset));
 
 		if (e.isCitizen()) {
-			Citizen c = (Citizen) e;
+			Citizen<?> c = (Citizen<?>) e;
 			entityNameField.setText(c.name);
 			examineTextField.setText(c.examine);
 
 			AnimationID moveAnimationFromRaw = c.movingAnimationRawId == null ? null : getAnimationIdFromRaw(c.movingAnimationRawId);
 			animIdMoveSelect.setSelectedItem(moveAnimationFromRaw != null ? moveAnimationFromRaw : c.movingAnimationId);
+			AnimationID movingAnimationId = c.movingAnimationId;
 			Integer effectiveMoveAnimationId = c.movingAnimationRawId != null
 				? c.movingAnimationRawId
-				: (c.movingAnimationId == null ? null : c.movingAnimationId.getId());
+				: (movingAnimationId == null ? null : movingAnimationId.getId());
 			manualAnimIdMoveSelect.setText(effectiveMoveAnimationId == null ? "" : String.valueOf(effectiveMoveAnimationId));
 
 			if (c.remarks != null) {

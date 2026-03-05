@@ -11,7 +11,7 @@ public class WanderingCitizen extends Citizen<WanderingCitizen> {
 	public WorldPoint wanderRegionTR;
 	private Instant lastWanderTime;
 
-	public WanderingCitizen(CitizensPlugin plugin) {
+	public WanderingCitizen(Citizens2Plugin plugin) {
 		super(plugin);
 		entityType = EntityType.WanderingCitizen;
 		lastWanderTime = Instant.now().minusSeconds(6);

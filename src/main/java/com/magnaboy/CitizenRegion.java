@@ -40,8 +40,8 @@ public class CitizenRegion {
 	private static final float VALID_REGION_VERSION = 0.8f;
 	private static final HashMap<Integer, CitizenRegion> dirtyRegions = new HashMap<>();
 	private static final String RELATIVE_REGIONDATA_DIRECTORY = "src/main/resources/RegionData";
-	private static CitizensPlugin plugin;
-	public transient HashMap<UUID, Entity> entities = new HashMap<>();
+	private static Citizens2Plugin plugin;
+	public transient HashMap<UUID, Entity<?>> entities = new HashMap<>();
 
 	public float version;
 	public int regionId;
@@ -49,7 +49,7 @@ public class CitizenRegion {
 	public List<SceneryInfo> sceneryRoster = new ArrayList<>();
 	public transient ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
 
-	public static void init(CitizensPlugin p) {
+	public static void init(Citizens2Plugin p) {
 		plugin = p;
 	}
 
@@ -91,7 +91,7 @@ public class CitizenRegion {
 				return null;
 			}
 			for (CitizenInfo cInfo : region.citizenRoster) {
-				Citizen citizen = loadCitizen(plugin, cInfo);
+				Citizen<?> citizen = loadCitizen(plugin, cInfo);
 				if (citizen != null) {
 					region.entities.put(citizen.uuid, citizen);
 				}
@@ -116,7 +116,7 @@ public class CitizenRegion {
 		}
 	}
 
-	public static void initCitizenInfo(Citizen citizen, CitizenInfo info) {
+	public static void initCitizenInfo(Citizen<?> citizen, CitizenInfo info) {
 		// Citizen
 		citizen.setName(info.name)
 			.setExamine(info.examineText)
@@ -137,8 +137,8 @@ public class CitizenRegion {
 			.setRegion(info.regionId);
 	}
 
-	public static Citizen loadCitizen(CitizensPlugin plugin, CitizenInfo info) {
-		Citizen citizen;
+	public static Citizen<?> loadCitizen(Citizens2Plugin plugin, CitizenInfo info) {
+		Citizen<?> citizen;
 
 		switch (info.entityType) {
 			case WanderingCitizen:
@@ -167,7 +167,7 @@ public class CitizenRegion {
 		return citizen;
 	}
 
-	private static StationaryCitizen loadStationaryCitizen(CitizensPlugin plugin, CitizenInfo info) {
+	private static StationaryCitizen loadStationaryCitizen(Citizens2Plugin plugin, CitizenInfo info) {
 		info.entityType = EntityType.StationaryCitizen;
 		StationaryCitizen citizen = new StationaryCitizen(plugin);
 		initCitizenInfo(citizen, info);
@@ -175,7 +175,7 @@ public class CitizenRegion {
 		return citizen;
 	}
 
-	private static WanderingCitizen loadWanderingCitizen(CitizensPlugin plugin, CitizenInfo info) {
+	private static WanderingCitizen loadWanderingCitizen(Citizens2Plugin plugin, CitizenInfo info) {
 		info.entityType = EntityType.WanderingCitizen;
 		WanderingCitizen citizen = new WanderingCitizen(plugin);
 		initCitizenInfo(citizen, info);
@@ -187,7 +187,7 @@ public class CitizenRegion {
 		return citizen;
 	}
 
-	private static ScriptedCitizen loadScriptedCitizen(CitizensPlugin plugin, CitizenInfo info) {
+	private static ScriptedCitizen loadScriptedCitizen(Citizens2Plugin plugin, CitizenInfo info) {
 		info.entityType = EntityType.ScriptedCitizen;
 		ScriptedCitizen citizen = new ScriptedCitizen(plugin);
 		initCitizenInfo(citizen, info);
@@ -198,7 +198,7 @@ public class CitizenRegion {
 		return citizen;
 	}
 
-	public static Scenery loadScenery(CitizensPlugin plugin, SceneryInfo info) {
+	public static Scenery loadScenery(Citizens2Plugin plugin, SceneryInfo info) {
 		Scenery scenery = new Scenery(plugin).setModelIDs(info.modelIds)
 			.setModelRecolors(info.modelRecolorFind, info.modelRecolorReplace)
 			.setIdleAnimation(info.idleAnimation)
@@ -218,10 +218,10 @@ public class CitizenRegion {
 		return scenery;
 	}
 
-	public static void forEachActiveEntity(Consumer<Entity> function) {
+	public static void forEachActiveEntity(Consumer<Entity<?>> function) {
 		for (CitizenRegion r : regionCache.values()) {
 			if (r != null) {
-				for (Entity e : r.entities.values()) {
+				for (Entity<?> e : r.entities.values()) {
 					if (e != null && e.distanceToPlayer() <= Util.MAX_ENTITY_RENDER_DISTANCE) {
 						function.accept(e);
 					}
@@ -230,7 +230,7 @@ public class CitizenRegion {
 		}
 	}
 
-	public static void forEachEntity(Consumer<Entity> function) {
+	public static void forEachEntity(Consumer<Entity<?>> function) {
 		regionCache.forEach((regionId, r) -> {
 			if (r != null) {
 				r.entities.forEach((id, e) -> {
@@ -255,8 +255,8 @@ public class CitizenRegion {
 	}
 
 	// DEVELOPMENT SECTION
-	public static Citizen spawnCitizenFromPanel(CitizenInfo info) {
-		Citizen citizen = loadCitizen(plugin, info);
+	public static Citizen<?> spawnCitizenFromPanel(CitizenInfo info) {
+		Citizen<?> citizen = loadCitizen(plugin, info);
 		CitizenRegion region = loadRegion(info.regionId, true);
 		region.entities.put(info.uuid, citizen);
 		region.citizenRoster.add(info);
@@ -282,7 +282,7 @@ public class CitizenRegion {
 		}
 
 		if (info.entityType == EntityType.Scenery) {
-			Entity e = region.entities.get(info.uuid);
+			Entity<?> e = region.entities.get(info.uuid);
 			if (e == null) {
 				return;
 			}
@@ -291,11 +291,11 @@ public class CitizenRegion {
 			removeEntityFromRegion(e);
 			addEntityToRegion(updated, info);
 		} else {
-			Entity e = region.entities.get(info.uuid);
+			Entity<?> e = region.entities.get(info.uuid);
 			if (e == null) {
 				return;
 			}
-			Citizen updated = loadCitizen(plugin, (CitizenInfo) info);
+			Citizen<?> updated = loadCitizen(plugin, (CitizenInfo) info);
 
 			removeEntityFromRegion(e);
 			addEntityToRegion(updated, info);
@@ -304,7 +304,7 @@ public class CitizenRegion {
 		dirtyRegion(region);
 	}
 
-	public static Entity getEntity(int regionId, UUID uuid) {
+	public static Entity<?> getEntity(int regionId, UUID uuid) {
 		CitizenRegion region = regionCache.get(regionId);
 		if (region == null) {
 			return null;
@@ -321,7 +321,7 @@ public class CitizenRegion {
 		dirtyRegions.clear();
 	}
 
-	public static void addEntityToRegion(Entity e, EntityInfo info) {
+	public static void addEntityToRegion(Entity<?> e, EntityInfo info) {
 		CitizenRegion region = regionCache.get(e.regionId);
 		region.entities.put(e.uuid, e);
 		if (info instanceof CitizenInfo) {
@@ -332,7 +332,7 @@ public class CitizenRegion {
 		}
 	}
 
-	private static void removeEntityFromRegion(Citizen citizen, CitizenRegion region) {
+	private static void removeEntityFromRegion(Citizen<?> citizen, CitizenRegion region) {
 		CitizenInfo info = region.citizenRoster.stream()
 			.filter(c -> Objects.equals(c.uuid, citizen.uuid))
 			.findFirst()
@@ -348,10 +348,10 @@ public class CitizenRegion {
 		region.sceneryRoster.remove(info);
 	}
 
-	public static void removeEntityFromRegion(Entity e) {
+	public static void removeEntityFromRegion(Entity<?> e) {
 		CitizenRegion region = regionCache.get(e.regionId);
 		if (e instanceof Citizen) {
-			removeEntityFromRegion((Citizen) e, region);
+			removeEntityFromRegion((Citizen<?>) e, region);
 		}
 		if (e instanceof Scenery) {
 			removeEntityFromRegion((Scenery) e, region);
@@ -495,10 +495,10 @@ public class CitizenRegion {
 		});
 	}
 
-	public void runOncePerTimePeriod(int timePeriodSeconds, int callIntervalSeconds, Consumer<Entity> callback) {
+	public void runOncePerTimePeriod(int timePeriodSeconds, int callIntervalSeconds, Consumer<Entity<?>> callback) {
 		double chance = (double) callIntervalSeconds / timePeriodSeconds;
 
-		for (Entity entity : entities.values()) {
+		for (Entity<?> entity : entities.values()) {
 			if (entity.isActive() && Util.rng.nextDouble() <= chance) {
 				int delayMs = (Util.getRandom(0, (callIntervalSeconds / 2) * 1000));
 				executorService.schedule(() -> plugin.clientThread.invokeLater(() -> {

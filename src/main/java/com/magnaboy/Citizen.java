@@ -26,7 +26,7 @@ public class Citizen<T extends Citizen<T>> extends Entity<T> {
 		{256, 256, 0, 1792, 1792},
 		{256, 256, 0, 1792, 1792}};
 	private static final int CENTER_INDEX_5X5 = 2;
-	public final CitizensPlugin plugin;
+	public final Citizens2Plugin plugin;
 	private final Client client;
 	private final List<Target> targetQueue = new ArrayList<>();
 	@Nullable
@@ -38,7 +38,7 @@ public class Citizen<T extends Citizen<T>> extends Entity<T> {
 	public Integer movingAnimationRawId;
 	private int remarkTimer = 0;
 
-	public Citizen(CitizensPlugin plugin) {
+	public Citizen(Citizens2Plugin plugin) {
 		super(plugin);
 		this.plugin = plugin;
 		this.client = plugin.client;
@@ -47,17 +47,17 @@ public class Citizen<T extends Citizen<T>> extends Entity<T> {
 
 	public T setName(String name) {
 		this.name = name;
-		return (T) this;
+		return self();
 	}
 
 	public T setExamine(String examine) {
 		this.examine = examine;
-		return (T) this;
+		return self();
 	}
 
 	public T setRemarks(String[] remarks) {
 		this.remarks = remarks;
-		return (T) this;
+		return self();
 	}
 
 	public void validate() {
@@ -268,9 +268,12 @@ public class Citizen<T extends Citizen<T>> extends Entity<T> {
 
 			int targetPlane = nextTarget.worldDestinationPosition.getPlane();
 			LocalPoint targetPosition = nextTarget.localDestinationPosition;
+			if (targetPosition == null) {
+				despawn();
+				return;
+			}
 			int targetOrientation = nextTarget.jauDestinationOrientation;
-			boolean targetInScene = targetPosition != null
-				&& targetPosition.getSceneX() >= 0
+			boolean targetInScene = targetPosition.getSceneX() >= 0
 				&& targetPosition.getSceneY() >= 0
 				&& targetPosition.getSceneX() < worldView.getSizeX()
 				&& targetPosition.getSceneY() < worldView.getSizeY();
@@ -293,7 +296,7 @@ public class Citizen<T extends Citizen<T>> extends Entity<T> {
 					: (movingAnimationId == null ? null : movingAnimationId.getId());
 
 				if (movingAnimationValue != null) {
-					Animation activeAnimation = rlObject.getAnimation();
+					Animation activeAnimation = getCurrentAnimation();
 					int activeAnimationId = activeAnimation == null ? -1 : activeAnimation.getId();
 					if (activeAnimationId != movingAnimationValue) {
 						setAnimation(movingAnimationValue);
@@ -309,7 +312,7 @@ public class Citizen<T extends Citizen<T>> extends Entity<T> {
 					dy = Integer.signum(dy) * speed;
 				}
 
-				LocalPoint newLocation = new LocalPoint(currentPosition.getX() + dx, currentPosition.getY() + dy);
+				LocalPoint newLocation = currentPosition.plus(dx, dy);
 				setLocation(newLocation);
 			} else {
 				targetQueue.remove(0);

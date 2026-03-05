@@ -6,8 +6,8 @@
             "name": "City workman",
             "examineText": "Working hard.",
             "remarks": [
-                "These rocks just won\u0027t go away...",
-                "My mining level isn\u0027t the highest...",
+                "These rocks just won't go away...",
+                "My mining level isn't the highest...",
                 "Hey you! Help me out!"
             ],
             "moveAnimation": "HumanWalk",

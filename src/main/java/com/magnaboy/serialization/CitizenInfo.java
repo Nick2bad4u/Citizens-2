@@ -8,6 +8,7 @@ public class CitizenInfo extends EntityInfo {
 	public String examineText;
 	public String[] remarks = {};
 	public AnimationID moveAnimation;
+	public Integer moveAnimationRawId;
 
 	public WorldPoint wanderBoxBL;
 	public WorldPoint wanderBoxTR;

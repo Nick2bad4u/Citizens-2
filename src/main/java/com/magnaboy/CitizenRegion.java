@@ -9,30 +9,37 @@ import com.magnaboy.serialization.SceneryInfo;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class CitizenRegion {
 
 	public static final HashMap<Integer, CitizenRegion> regionCache = new HashMap<>();
 	private static final float VALID_REGION_VERSION = 0.8f;
 	private static final HashMap<Integer, CitizenRegion> dirtyRegions = new HashMap<>();
-	private static final String REGIONDATA_DIRECTORY = new File("src/main/resources/RegionData/").getAbsolutePath();
+	private static final String RELATIVE_REGIONDATA_DIRECTORY = "src/main/resources/RegionData";
 	private static CitizensPlugin plugin;
 	public transient HashMap<UUID, Entity> entities = new HashMap<>();
 
@@ -76,9 +83,11 @@ public class CitizenRegion {
 		try (Reader reader = new BufferedReader(new InputStreamReader(inputStream))) {
 			CitizenRegion region = plugin.gson.fromJson(reader, CitizenRegion.class);
 			if (region == null) {
+				log.warn("Citizen region {} parsed as null", regionId);
 				return null;
 			}
 			if (region.version != VALID_REGION_VERSION) {
+				log.warn("Citizen region {} has incompatible version {} (expected {})", regionId, region.version, VALID_REGION_VERSION);
 				return null;
 			}
 			for (CitizenInfo cInfo : region.citizenRoster) {
@@ -94,9 +103,15 @@ public class CitizenRegion {
 			if (plugin.IS_DEVELOPMENT) {
 				region.entities.values().forEach(Entity::validate);
 			}
+			log.debug("Loaded citizen region {} (citizens={}, scenery={}, entities={})",
+				regionId,
+				region.citizenRoster.size(),
+				region.sceneryRoster.size(),
+				region.entities.size());
 			regionCache.put(regionId, region);
 			return region;
-		} catch (IOException e) {
+		} catch (Exception e) {
+			log.error("Failed to load citizen region {}", regionId, e);
 			return null;
 		}
 	}
@@ -112,6 +127,8 @@ public class CitizenRegion {
 			.setObjectToRemove(info.removedObject)
 			.setModelRecolors(info.modelRecolorFind, info.modelRecolorReplace)
 			.setIdleAnimation(info.idleAnimation)
+			.setIdleAnimationRawId(info.idleAnimationRawId)
+			.setHeightOffset(info.heightOffset)
 			.setScale(info.scale)
 			.setTranslate(info.translate)
 			.setBaseOrientation(info.baseOrientation)
@@ -137,6 +154,10 @@ public class CitizenRegion {
 
 		if (info.mergedObjects != null) {
 			info.mergedObjects.forEach(citizen::addMergedObject);
+		}
+
+		if (info.moveAnimationRawId != null) {
+			citizen.movingAnimationRawId = info.moveAnimationRawId;
 		}
 
 		if (info.moveAnimation != null) {
@@ -181,6 +202,8 @@ public class CitizenRegion {
 		Scenery scenery = new Scenery(plugin).setModelIDs(info.modelIds)
 			.setModelRecolors(info.modelRecolorFind, info.modelRecolorReplace)
 			.setIdleAnimation(info.idleAnimation)
+			.setIdleAnimationRawId(info.idleAnimationRawId)
+			.setHeightOffset(info.heightOffset)
 			.setScale(info.scale)
 			.setTranslate(info.translate)
 			.setBaseOrientation(info.baseOrientation)
@@ -253,21 +276,41 @@ public class CitizenRegion {
 	}
 
 	public static void updateEntity(EntityInfo info) {
+		CitizenRegion region = regionCache.get(info.regionId);
+		if (region == null) {
+			return;
+		}
+
 		if (info.entityType == EntityType.Scenery) {
-			CitizenRegion region = regionCache.get(info.regionId);
 			Entity e = region.entities.get(info.uuid);
+			if (e == null) {
+				return;
+			}
 			Scenery updated = loadScenery(plugin, (SceneryInfo) info);
 
-			addEntityToRegion(updated, info);
 			removeEntityFromRegion(e);
+			addEntityToRegion(updated, info);
 		} else {
-			CitizenRegion region = regionCache.get(info.regionId);
 			Entity e = region.entities.get(info.uuid);
+			if (e == null) {
+				return;
+			}
 			Citizen updated = loadCitizen(plugin, (CitizenInfo) info);
 
-			addEntityToRegion(updated, info);
 			removeEntityFromRegion(e);
+			addEntityToRegion(updated, info);
 		}
+
+		dirtyRegion(region);
+	}
+
+	public static Entity getEntity(int regionId, UUID uuid) {
+		CitizenRegion region = regionCache.get(regionId);
+		if (region == null) {
+			return null;
+		}
+
+		return region.entities.get(uuid);
 	}
 
 	public static void dirtyRegion(CitizenRegion region) {
@@ -291,7 +334,7 @@ public class CitizenRegion {
 
 	private static void removeEntityFromRegion(Citizen citizen, CitizenRegion region) {
 		CitizenInfo info = region.citizenRoster.stream()
-			.filter(c -> c.uuid == citizen.uuid)
+			.filter(c -> Objects.equals(c.uuid, citizen.uuid))
 			.findFirst()
 			.orElse(null);
 		region.citizenRoster.remove(info);
@@ -299,7 +342,7 @@ public class CitizenRegion {
 
 	private static void removeEntityFromRegion(Scenery scenery, CitizenRegion region) {
 		SceneryInfo info = region.sceneryRoster.stream()
-			.filter(c -> c.uuid == scenery.uuid)
+			.filter(c -> Objects.equals(c.uuid, scenery.uuid))
 			.findFirst()
 			.orElse(null);
 		region.sceneryRoster.remove(info);
@@ -344,23 +387,111 @@ public class CitizenRegion {
 	}
 
 	public void saveRegion() throws IOException {
-		try {
-			Path path = Paths.get(REGIONDATA_DIRECTORY, regionId + ".json");
-			Writer wr = new BufferedWriter(new FileWriter(path.toString()));
-			GsonBuilder gb = plugin.gson.newBuilder();
-			gb.setPrettyPrinting();
-			Gson gson = gb.create();
-			gson.toJson(this, wr);
-			wr.flush();
-			wr.close();
-		} catch (IOException e) {
-			throw new IOException(e);
+		Set<Path> regionDataDirectories = resolveRegionDataDirectories();
+		if (regionDataDirectories.isEmpty()) {
+			throw new IOException("No valid RegionData directories found for Save Changes. "
+				+ "Tried cwd/runtime/env candidates. cwd=" + new File(".").getAbsolutePath());
 		}
+
+		GsonBuilder gb = plugin.gson.newBuilder();
+		gb.setPrettyPrinting();
+		Gson gson = gb.create();
+
+		int successfulWrites = 0;
+		List<String> failedWrites = new ArrayList<>();
+
+		for (Path regionDataDir : regionDataDirectories) {
+			Path outPath = regionDataDir.resolve(regionId + ".json");
+			try (Writer wr = new BufferedWriter(Files.newBufferedWriter(outPath, StandardCharsets.UTF_8))) {
+				gson.toJson(this, wr);
+				successfulWrites++;
+			} catch (IOException writeEx) {
+				failedWrites.add(outPath.toString() + " => " + writeEx.getMessage());
+			}
+		}
+
+		if (successfulWrites == 0) {
+			throw new IOException("Failed writing region " + regionId + " to all targets: " + failedWrites);
+		}
+
+		if (!failedWrites.isEmpty()) {
+			log.warn("Region {} saved to {} target(s), but some writes failed: {}", regionId, successfulWrites, failedWrites);
+		} else {
+			log.debug("Region {} saved to {} target(s)", regionId, successfulWrites);
+		}
+	}
+
+	private static void addIfDirectory(Set<Path> out, Path directory) {
+		if (directory == null) {
+			return;
+		}
+		Path normalized = directory.toAbsolutePath().normalize();
+		if (Files.isDirectory(normalized)) {
+			out.add(normalized);
+		}
+	}
+
+	private static Path envPath(String envVar) {
+		String value = System.getenv(envVar);
+		if (value == null || value.trim().isEmpty()) {
+			return null;
+		}
+		return Paths.get(value.trim());
+	}
+
+	private static Path findCitizensRepoRegionDataDirUnderDropbox() {
+		String userHome = System.getProperty("user.home");
+		if (userHome == null || userHome.trim().isEmpty()) {
+			return null;
+		}
+
+		Path dropbox = Paths.get(userHome, "Dropbox");
+		if (!Files.isDirectory(dropbox)) {
+			return null;
+		}
+
+		Path suffix = Paths.get("GitHub", "Citizens-2", "src", "main", "resources", "RegionData");
+		try (Stream<Path> stream = Files.find(dropbox, 10, (p, attrs) -> attrs.isDirectory() && p.endsWith(suffix))) {
+			return stream.findFirst().orElse(null);
+		} catch (IOException ignored) {
+			return null;
+		}
+	}
+
+	private static Set<Path> resolveRegionDataDirectories() {
+		LinkedHashSet<Path> targets = new LinkedHashSet<>();
+
+		Path cwd = Paths.get(".").toAbsolutePath().normalize();
+		addIfDirectory(targets, cwd.resolve(RELATIVE_REGIONDATA_DIRECTORY));
+		addIfDirectory(targets, cwd.resolve("runelite-client").resolve(RELATIVE_REGIONDATA_DIRECTORY));
+
+		Path runtimeRoot = envPath("CITIZENS_RUNTIME_ROOT");
+		if (runtimeRoot == null) {
+			runtimeRoot = envPath("GEFILTERS_RUNTIME_ROOT");
+		}
+		addIfDirectory(targets, runtimeRoot == null ? null : runtimeRoot.resolve(RELATIVE_REGIONDATA_DIRECTORY));
+
+		Path repoRoot = envPath("CITIZENS_REPO_ROOT");
+		addIfDirectory(targets, repoRoot == null ? null : repoRoot.resolve(RELATIVE_REGIONDATA_DIRECTORY));
+
+		addIfDirectory(targets, findCitizensRepoRegionDataDirUnderDropbox());
+
+		return targets;
 	}
 
 	public void updateEntities() {
 		plugin.clientThread.invokeLater(() -> {
-			entities.values().forEach(Entity::update);
+			entities.values().forEach(entity -> {
+				try {
+					entity.update();
+				} catch (Exception ex) {
+					log.error("Failed to update entity in region {} (type={}, uuid={})",
+						regionId,
+						entity.entityType,
+						entity.uuid,
+						ex);
+				}
+			});
 		});
 	}
 
@@ -368,9 +499,19 @@ public class CitizenRegion {
 		double chance = (double) callIntervalSeconds / timePeriodSeconds;
 
 		for (Entity entity : entities.values()) {
-			if (Math.random() < chance) {
+			if (entity.isActive() && Util.rng.nextDouble() <= chance) {
 				int delayMs = (Util.getRandom(0, (callIntervalSeconds / 2) * 1000));
-				executorService.schedule(() -> callback.accept(entity), delayMs, TimeUnit.MILLISECONDS);
+				executorService.schedule(() -> plugin.clientThread.invokeLater(() -> {
+					try {
+						callback.accept(entity);
+					} catch (Exception ex) {
+						log.error("Citizen callback failure in region {} (type={}, uuid={})",
+							regionId,
+							entity.entityType,
+							entity.uuid,
+							ex);
+					}
+				}), delayMs, TimeUnit.MILLISECONDS);
 			}
 		}
 	}

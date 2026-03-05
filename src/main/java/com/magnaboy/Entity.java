@@ -2,8 +2,10 @@ package com.magnaboy;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.AABB;
 import net.runelite.api.Animation;
 import net.runelite.api.Client;
@@ -17,11 +19,13 @@ import net.runelite.api.Player;
 import net.runelite.api.RuneLiteObject;
 import net.runelite.api.Scene;
 import net.runelite.api.Tile;
+import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.geometry.SimplePolygon;
 import net.runelite.api.model.Jarvis;
 
+@Slf4j
 public class Entity<T extends Entity<T>> {
 	public Integer regionId;
 	public String name;
@@ -41,7 +45,11 @@ public class Entity<T extends Entity<T>> {
 	private int[] modelIDs;
 	private int[] recolorsToFind;
 	private int[] recolorsToReplace;
+	protected Integer idleAnimationRawId;
 	private Integer objectToRemove;
+	protected Integer heightOffset;
+	private volatile boolean active;
+	private volatile boolean failed;
 
 	public Entity(CitizensPlugin plugin) {
 		this.plugin = plugin;
@@ -129,7 +137,8 @@ public class Entity<T extends Entity<T>> {
 	}
 
 	public int getAnimationID() {
-		return rlObject.getAnimation().getId();
+		Animation animation = rlObject.getAnimation();
+		return animation == null ? -1 : animation.getId();
 	}
 
 	public boolean isCitizen() {
@@ -138,8 +147,16 @@ public class Entity<T extends Entity<T>> {
 
 	public SimplePolygon getClickbox() {
 		LocalPoint location = getLocalLocation();
-		int zOff = Perspective.getTileHeight(plugin.client, location, plugin.client.getPlane());
-		return calculateAABB(plugin.client, rlObject.getModel(), rlObject.getOrientation(), location.getX(), location.getY(), plugin.client.getPlane(), zOff);
+		if (location == null || rlObject.getModel() == null) {
+			return null;
+		}
+		WorldView worldView = plugin.client.getTopLevelWorldView();
+		if (worldView == null) {
+			return null;
+		}
+		int plane = worldView.getPlane();
+		int zOff = Perspective.getTileHeight(plugin.client, location, plane);
+		return calculateAABB(plugin.client, rlObject.getModel(), rlObject.getOrientation(), location.getX(), location.getY(), plane, zOff);
 	}
 
 	public LocalPoint getLocalLocation() {
@@ -161,6 +178,13 @@ public class Entity<T extends Entity<T>> {
 		});
 	}
 
+	protected Integer getConfiguredIdleAnimationValue() {
+		if (idleAnimationRawId != null) {
+			return idleAnimationRawId;
+		}
+		return idleAnimationId == null ? null : idleAnimationId.getId();
+	}
+
 	public T setWorldLocation(WorldPoint location) {
 		this.worldLocation = location;
 		return (T) this;
@@ -177,6 +201,10 @@ public class Entity<T extends Entity<T>> {
 	}
 
 	public void update() {
+		if (failed) {
+			return;
+		}
+
 		boolean inScene = shouldRender();
 
 		if (inScene) {
@@ -198,6 +226,11 @@ public class Entity<T extends Entity<T>> {
 
 	public T setTranslate(float[] translate) {
 		this.translate = translate;
+		return (T) this;
+	}
+
+	public T setHeightOffset(Integer heightOffset) {
+		this.heightOffset = heightOffset;
 		return (T) this;
 	}
 
@@ -227,6 +260,26 @@ public class Entity<T extends Entity<T>> {
 			throw new IllegalStateException("Tried to set null location");
 		}
 		rlObject.setLocation(location, getPlane());
+
+		int zOffset = 0;
+		CitizensConfig config = plugin.getConfig();
+		if (config != null && isCitizen()) {
+			zOffset += config.citizenHeightOffset();
+			if (config.debugAirliftCitizens()) {
+				zOffset += config.debugAirliftOffset();
+			}
+		}
+
+		if (heightOffset != null) {
+			zOffset += heightOffset;
+		}
+
+		if (zOffset != 0) {
+			// RuneLiteObject Z grows downward in this context.
+			// Positive config/entity offsets should move citizens upward for intuitive tuning.
+			rlObject.setZ(rlObject.getZ() - zOffset);
+		}
+
 		WorldPoint wp = WorldPoint.fromLocal(plugin.client, location);
 		setWorldLocation(wp);
 		return (T) this;
@@ -237,7 +290,20 @@ public class Entity<T extends Entity<T>> {
 	}
 
 	public boolean shouldRender() {
-		if (getPlane() != plugin.client.getPlane()) {
+		if (worldLocation == null) {
+			return false;
+		}
+
+		WorldView worldView = plugin.client.getTopLevelWorldView();
+		if (worldView == null) {
+			return false;
+		}
+
+		if (plugin.client.getLocalPlayer() == null) {
+			return false;
+		}
+
+		if (getPlane() != worldView.getPlane()) {
 			return false;
 		}
 
@@ -247,12 +313,15 @@ public class Entity<T extends Entity<T>> {
 			return false;
 		}
 
-		LocalPoint lp = LocalPoint.fromWorld(plugin.client, worldLocation);
+		LocalPoint lp = LocalPoint.fromWorld(worldView, worldLocation);
 		return lp != null;
 	}
 
 	public float distanceToPlayer() {
 		Player player = plugin.client.getLocalPlayer();
+		if (player == null || worldLocation == null) {
+			return Float.MAX_VALUE;
+		}
 		WorldPoint playerWorldLoc = player.getWorldLocation();
 		return playerWorldLoc.distanceTo(getWorldLocation());
 	}
@@ -261,12 +330,17 @@ public class Entity<T extends Entity<T>> {
 		if (rlObject == null) {
 			return false;
 		}
-		if (!rlObject.isActive()) {
+
+		if (!active) {
 			return false;
 		}
 
+		active = false;
+
 		plugin.clientThread.invokeLater(() -> {
-			rlObject.setActive(false);
+			if (rlObject != null && rlObject.isActive()) {
+				rlObject.setActive(false);
+			}
 		});
 
 		if (plugin.IS_DEVELOPMENT) {
@@ -278,15 +352,39 @@ public class Entity<T extends Entity<T>> {
 
 	private void initModel() {
 		if (rlObject.getModel() == null) {
+			if (modelIDs == null || modelIDs.length == 0) {
+				throw new IllegalStateException("No modelIDs configured for entity " + uuid + " (" + entityType + ")");
+			}
+
 			ArrayList<ModelData> models = new ArrayList<ModelData>();
+			List<Integer> missingModelIds = new ArrayList<>();
 			for (int modelID : modelIDs) {
 				ModelData data = plugin.client.loadModelData(modelID);
+				if (data == null) {
+					log.warn("Missing model data id {} for entity {} ({})", modelID, uuid, entityType);
+					missingModelIds.add(modelID);
+					continue;
+				}
 				models.add(data);
+			}
+
+			if (!missingModelIds.isEmpty()) {
+				log.warn("Entity '{}' (uuid={}, type={}) missing {} of {} model IDs {}. This can cause partial renders (e.g. missing boots).",
+					name,
+					uuid,
+					entityType,
+					missingModelIds.size(),
+					modelIDs.length,
+					missingModelIds);
 			}
 
 			// Merge merged objects
 			for (MergedObject obj : mergedObjects) {
 				ModelData data = plugin.client.loadModelData(obj.objectID);
+				if (data == null) {
+					log.warn("Missing merged model data id {} for entity {} ({})", obj.objectID, uuid, entityType);
+					continue;
+				}
 				for (int i = 0; i < obj.count90CCWRotations; i++) {
 					data.cloneVertices();
 					data.rotateY90Ccw();
@@ -294,10 +392,27 @@ public class Entity<T extends Entity<T>> {
 				models.add(data);
 			}
 
+			if (models.isEmpty()) {
+				throw new IllegalStateException("No model parts loaded for entity " + uuid + " (" + entityType + ")");
+			}
+
 			ModelData finalModel = plugin.client.mergeModels(models.toArray(new ModelData[models.size()]), models.size());
-			if (recolorsToReplace != null && recolorsToReplace.length > 0) {
-				for (int i = 0; i < recolorsToReplace.length; i++) {
-					finalModel.recolor((short) recolorsToFind[i], (short) recolorsToReplace[i]);
+			if (finalModel == null) {
+				throw new IllegalStateException("Failed to merge model parts for entity " + uuid + " (" + entityType + ")");
+			}
+
+			if (recolorsToFind != null && recolorsToReplace != null && recolorsToReplace.length > 0) {
+				if (recolorsToFind.length != recolorsToReplace.length) {
+					log.warn("Skipping recolors for entity '{}' (uuid={}, type={}) due mismatch: find={}, replace={}",
+						name,
+						uuid,
+						entityType,
+						recolorsToFind.length,
+						recolorsToReplace.length);
+				} else {
+					for (int i = 0; i < recolorsToReplace.length; i++) {
+						finalModel.recolor((short) recolorsToFind[i], (short) recolorsToReplace[i]);
+					}
 				}
 			}
 			if (scale != null) {
@@ -317,8 +432,10 @@ public class Entity<T extends Entity<T>> {
 			rlObject.setOrientation(baseOrientation);
 		}
 
-		if (this.idleAnimationId != null && rlObject.getAnimation() == null) {
-			setAnimation((this.idleAnimationId).getId());
+		Animation currentAnimation = rlObject.getAnimation();
+		Integer idleAnimationValue = getConfiguredIdleAnimationValue();
+		if (idleAnimationValue != null && currentAnimation == null) {
+			setAnimation(idleAnimationValue);
 		}
 
 		rlObject.setShouldLoop(true);
@@ -326,7 +443,8 @@ public class Entity<T extends Entity<T>> {
 
 	public String debugName() {
 		float dist = distanceToPlayer();
-		return "N:" + name + " T:" + entityType + " ID:" + uuid.toString().substring(0, 6) + " D:" + dist;
+		String shortId = uuid == null ? "null" : uuid.toString().substring(0, Math.min(6, uuid.toString().length()));
+		return "N:" + name + " T:" + entityType + " ID:" + shortId + " D:" + dist;
 	}
 
 	public void validate() {
@@ -351,15 +469,29 @@ public class Entity<T extends Entity<T>> {
 			return false;
 		}
 
-		initModel();
-		initLocation();
-		if (objectToRemove != null) {
-			removeOtherObjects();
+		if (failed) {
+			return false;
 		}
 
-		if (idleAnimationId != null) {
-			setAnimation(idleAnimationId.getId());
+		try {
+			initModel();
+			initLocation();
+			if (objectToRemove != null) {
+				removeOtherObjects();
+			}
+		} catch (Exception ex) {
+			failed = true;
+			active = false;
+			log.error("Failed to spawn entity (uuid={}, type={}, region={}); disabling further updates", uuid, entityType, regionId, ex);
+			return false;
 		}
+
+		Integer idleAnimationValue = getConfiguredIdleAnimationValue();
+		if (idleAnimationValue != null) {
+			setAnimation(idleAnimationValue);
+		}
+
+		active = true;
 
 		plugin.clientThread.invokeLater(() -> {
 			rlObject.setActive(true);
@@ -373,7 +505,7 @@ public class Entity<T extends Entity<T>> {
 	}
 
 	public boolean isActive() {
-		return rlObject.isActive();
+		return active;
 	}
 
 	public boolean rotateObject(double intx, double inty) {
@@ -413,6 +545,11 @@ public class Entity<T extends Entity<T>> {
 		return (T) this;
 	}
 
+	public T setIdleAnimationRawId(Integer idleAnimationRawId) {
+		this.idleAnimationRawId = idleAnimationRawId;
+		return (T) this;
+	}
+
 	public T setUUID(UUID uuid) {
 		if (this.uuid == null) {
 			this.uuid = uuid;
@@ -436,7 +573,7 @@ public class Entity<T extends Entity<T>> {
 		}
 
 		Entity compare = (Entity) o;
-		return this.uuid == compare.uuid;
+		return Objects.equals(this.uuid, compare.uuid);
 	}
 
 	public String getModelIDsString() {
@@ -452,14 +589,42 @@ public class Entity<T extends Entity<T>> {
 	}
 
 	private void removeOtherObjects() {
-		Scene scene = plugin.client.getScene();
-		Tile[][] tiles = scene.getTiles()[plugin.client.getPlane()];
+		if (worldLocation == null) {
+			return;
+		}
 
-		LocalPoint lp = LocalPoint.fromWorld(plugin.client, worldLocation);
+		WorldView worldView = plugin.client.getTopLevelWorldView();
+		if (worldView == null) {
+			return;
+		}
+
+		Scene scene = worldView.getScene();
+		if (scene == null || scene.getTiles() == null) {
+			return;
+		}
+
+		int plane = worldView.getPlane();
+		if (plane < 0 || plane >= scene.getTiles().length) {
+			return;
+		}
+
+		Tile[][] tiles = scene.getTiles()[plane];
+		if (tiles == null) {
+			return;
+		}
+
+		LocalPoint lp = LocalPoint.fromWorld(worldView, worldLocation);
 		if (lp == null) {
 			return;
 		}
-		Tile tile = tiles[lp.getSceneX()][lp.getSceneY()];
+
+		int sceneX = lp.getSceneX();
+		int sceneY = lp.getSceneY();
+		if (sceneX < 0 || sceneX >= tiles.length || tiles[sceneX] == null || sceneY < 0 || sceneY >= tiles[sceneX].length) {
+			return;
+		}
+
+		Tile tile = tiles[sceneX][sceneY];
 		if (tile == null) {
 			return;
 		}

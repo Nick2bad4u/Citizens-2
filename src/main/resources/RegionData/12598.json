@@ -1,137 +1,137 @@
 {
-    "version": 0.8,
-    "regionId": 12598,
-    "citizenRoster": [
-        {
-            "name": "Richard",
-            "examineText": "I wonder what he\u0027s cooking.",
-            "remarks": [
-                "We need to cook!"
-            ],
-            "uuid": "29343c79-3425-44a1-a5b7-cf37a2fc935b",
-            "regionId": 12598,
-            "entityType": "StationaryCitizen",
-            "worldLocation": {
-                "x": 3169,
-                "y": 3489,
-                "plane": 0
-            },
-            "modelIds": [
-                217,
-                305,
-                26619,
-                176,
-                28346,
-                7121,
-                246
-            ],
-            "modelRecolorFind": [],
-            "modelRecolorReplace": [],
-            "idleAnimation": "FireCook"
-        },
-        {
-            "name": "Squirrel",
-            "examineText": "Cute.",
-            "remarks": [],
-            "moveAnimation": "SquirrelWalk",
-            "wanderBoxBL": {
-                "x": 3170,
-                "y": 3456,
-                "plane": 0
-            },
-            "wanderBoxTR": {
-                "x": 3179,
-                "y": 3461,
-                "plane": 0
-            },
-            "uuid": "dc287ef4-aa9c-4789-93de-11ba37de7a3c",
-            "regionId": 12598,
-            "entityType": "WanderingCitizen",
-            "worldLocation": {
-                "x": 3179,
-                "y": 3461,
-                "plane": 0
-            },
-            "modelIds": [
-                11723
-            ],
-            "baseOrientation": 1536,
-            "modelRecolorFind": [
-                4300,
-                7240,
-                61,
-                5173,
-                30
-            ],
-            "modelRecolorReplace": [
-                3738,
-                4510,
-                4510,
-                4760,
-                3738
-            ],
-            "idleAnimation": "SquirrelIdle"
-        },
-        {
-            "name": "Child",
-            "examineText": "A child.",
-            "moveAnimation": "ChildWalk",
-            "wanderBoxBL": {
-                "x": 3177,
-                "y": 3506,
-                "plane": 0
-            },
-            "wanderBoxTR": {
-                "x": 3181,
-                "y": 3512,
-                "plane": 0
-            },
-            "uuid": "bbff28c1-4bc3-45a1-b510-3fbb9222d67f",
-            "regionId": 12598,
-            "entityType": "WanderingCitizen",
-            "worldLocation": {
-                "x": 3181,
-                "y": 3512,
-                "plane": 0
-            },
-            "modelIds": [
-                12735,
-                56139,
-                56184
-            ],
-            "baseOrientation": 1024,
-            "modelRecolorFind": [
-                8741,
-                22426,
-                25238,
-                4550
-            ],
-            "modelRecolorReplace": [
-                10351,
-                10351,
-                10351,
-                5555
-            ],
-            "idleAnimation": "ChildIdle"
-        }
-    ],
-    "sceneryRoster": [
-        {
-            "uuid": "6cb19c32-7563-4be1-ba09-4210bf4bee6a",
-            "regionId": 12598,
-            "entityType": "Scenery",
-            "worldLocation": {
-                "x": 3169,
-                "y": 3488,
-                "plane": 0
-            },
-            "modelIds": [
-                2260
-            ],
-            "baseOrientation": 1024,
-            "modelRecolorFind": [],
-            "modelRecolorReplace": [],
-            "idleAnimation": "FireIdle"
-        }
-    ]
+  "version": 0.8,
+  "regionId": 12598,
+  "citizenRoster": [
+    {
+      "name": "Richard",
+      "examineText": "I wonder what he's cooking.",
+      "remarks": [
+        "We need to cook!"
+      ],
+      "uuid": "29343c79-3425-44a1-a5b7-cf37a2fc935b",
+      "regionId": 12598,
+      "entityType": "StationaryCitizen",
+      "worldLocation": {
+        "x": 3169,
+        "y": 3489,
+        "plane": 0
+      },
+      "modelIds": [
+        217,
+        305,
+        26619,
+        176,
+        28346,
+        7121,
+        246
+      ],
+      "modelRecolorFind": [],
+      "modelRecolorReplace": [],
+      "idleAnimation": "FireCook"
+    },
+    {
+      "name": "Squirrel",
+      "examineText": "Cute.",
+      "remarks": [],
+      "moveAnimation": "SquirrelWalk",
+      "wanderBoxBL": {
+        "x": 3170,
+        "y": 3456,
+        "plane": 0
+      },
+      "wanderBoxTR": {
+        "x": 3179,
+        "y": 3461,
+        "plane": 0
+      },
+      "uuid": "dc287ef4-aa9c-4789-93de-11ba37de7a3c",
+      "regionId": 12598,
+      "entityType": "WanderingCitizen",
+      "worldLocation": {
+        "x": 3179,
+        "y": 3461,
+        "plane": 0
+      },
+      "modelIds": [
+        11723
+      ],
+      "baseOrientation": 1536,
+      "modelRecolorFind": [
+        4300,
+        7240,
+        61,
+        5173,
+        30
+      ],
+      "modelRecolorReplace": [
+        3738,
+        4510,
+        4510,
+        4760,
+        3738
+      ],
+      "idleAnimation": "SquirrelIdle"
+    },
+    {
+      "name": "Child",
+      "examineText": "A child.",
+      "moveAnimation": "ChildWalk",
+      "wanderBoxBL": {
+        "x": 3177,
+        "y": 3506,
+        "plane": 0
+      },
+      "wanderBoxTR": {
+        "x": 3181,
+        "y": 3512,
+        "plane": 0
+      },
+      "uuid": "bbff28c1-4bc3-45a1-b510-3fbb9222d67f",
+      "regionId": 12598,
+      "entityType": "WanderingCitizen",
+      "worldLocation": {
+        "x": 3181,
+        "y": 3512,
+        "plane": 0
+      },
+      "modelIds": [
+        12735,
+        56139,
+        56184
+      ],
+      "baseOrientation": 1024,
+      "modelRecolorFind": [
+        8741,
+        22426,
+        25238,
+        4550
+      ],
+      "modelRecolorReplace": [
+        10351,
+        10351,
+        10351,
+        5555
+      ],
+      "idleAnimation": "ChildIdle"
+    }
+  ],
+  "sceneryRoster": [
+    {
+      "uuid": "6cb19c32-7563-4be1-ba09-4210bf4bee6a",
+      "regionId": 12598,
+      "entityType": "Scenery",
+      "worldLocation": {
+        "x": 3169,
+        "y": 3488,
+        "plane": 0
+      },
+      "modelIds": [
+        2260
+      ],
+      "baseOrientation": 1024,
+      "modelRecolorFind": [],
+      "modelRecolorReplace": [],
+      "idleAnimation": "FireIdle"
+    }
+  ]
 }

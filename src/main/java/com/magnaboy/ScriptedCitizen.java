@@ -5,10 +5,13 @@ import com.magnaboy.scripting.ActionType;
 import com.magnaboy.scripting.ScriptAction;
 import com.magnaboy.scripting.ScriptFile;
 import com.magnaboy.scripting.ScriptLoader;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.coords.WorldPoint;
 
+@Slf4j
 public class ScriptedCitizen extends Citizen<ScriptedCitizen> {
 	public ScriptAction currentAction;
 	public WorldPoint baseLocation;
@@ -21,10 +24,34 @@ public class ScriptedCitizen extends Citizen<ScriptedCitizen> {
 	}
 
 	private void submitAction(ScriptAction action, Runnable task) {
-		scriptExecutor.submit(() -> {
-			this.currentAction = action;
-			task.run();
-		});
+		if (scriptExecutor == null || scriptExecutor.isShutdown()) {
+			return;
+		}
+
+		try {
+			scriptExecutor.submit(() -> {
+				if (Thread.currentThread().isInterrupted() || !isActive()) {
+					return;
+				}
+
+				this.currentAction = action;
+				try {
+					task.run();
+				} catch (Exception ex) {
+					log.error("Script action {} failed for citizen {}", action == null ? null : action.action, uuid, ex);
+				}
+
+				if (!Thread.currentThread().isInterrupted()
+					&& scriptExecutor != null
+					&& !scriptExecutor.isShutdown()
+					&& isActive()
+					&& script != null) {
+					buildRoutine();
+				}
+			});
+		} catch (RejectedExecutionException ignored) {
+			// executor was shut down between guard and submit
+		}
 	}
 
 	public ScriptedCitizen setScript(String scriptName) {
@@ -50,12 +77,15 @@ public class ScriptedCitizen extends Citizen<ScriptedCitizen> {
 		if (scriptExecutor == null || scriptExecutor.isShutdown()) {
 			scriptExecutor = Executors.newSingleThreadExecutor();
 			// When script restarts, make them walk to start location?
-			ScriptAction walkAction = new ScriptAction();
-			walkAction.action = ActionType.WalkTo;
-			walkAction.targetPosition = baseLocation;
-			walkAction.secondsTilNextAction = 0f;
-			addWalkAction(walkAction);
-			buildRoutine();
+			if (baseLocation != null) {
+				ScriptAction walkAction = new ScriptAction();
+				walkAction.action = ActionType.WalkTo;
+				walkAction.targetPosition = baseLocation;
+				walkAction.secondsTilNextAction = 0f;
+				addWalkAction(walkAction);
+			} else {
+				buildRoutine();
+			}
 		}
 	}
 
@@ -73,14 +103,14 @@ public class ScriptedCitizen extends Citizen<ScriptedCitizen> {
 	}
 
 	private void buildRoutine() {
-		if (script == null) {
+		if (script == null || script.actions == null || script.actions.isEmpty() || scriptExecutor == null || scriptExecutor.isShutdown() || !isActive()) {
 			return;
 		}
 
-		for (ScriptAction action : script.actions) {
+		ScriptAction action = script.nextAction();
+		if (action != null) {
 			addAction(action);
 		}
-		scriptExecutor.submit(this::buildRoutine);
 	}
 
 	private void addAction(ScriptAction action) {
@@ -116,16 +146,24 @@ public class ScriptedCitizen extends Citizen<ScriptedCitizen> {
 
 	private void addWalkAction(ScriptAction action) {
 		submitAction(action, () -> {
-			int tilesToWalk = action.targetPosition.distanceTo2D(getWorldLocation()) + 1;
-			sleep(tilesToWalk * 100);
+			if (action.targetPosition == null) {
+				setWait(action.secondsTilNextAction);
+				return;
+			}
+
+			WorldPoint current = getWorldLocation();
+			int tilesToWalk = current == null ? 1 : action.targetPosition.distanceTo2D(current) + 1;
+			if (!sleep(tilesToWalk * 100)) {
+				return;
+			}
 			plugin.clientThread.invokeLater(() -> {
 				moveTo(action.targetPosition, action.targetRotation == null ? null : action.targetRotation.getAngle(),
 					false, false);
 			});
-			while (!getWorldLocation().equals(action.targetPosition) ||
-				getAnimationID() != idleAnimationId.getId() ||
-				WorldPoint.fromLocal(plugin.client, getLocalLocation()).distanceTo2D(getWorldLocation()) > 0) {
-				sleep();
+
+			int walkSettleMillis = Math.max(250, tilesToWalk * 120);
+			if (!sleep(walkSettleMillis)) {
+				return;
 			}
 
 			setWait(action.secondsTilNextAction);
@@ -134,41 +172,53 @@ public class ScriptedCitizen extends Citizen<ScriptedCitizen> {
 
 	private void addRotateAction(ScriptAction action) {
 		submitAction(action, () -> {
-			rlObject.setOrientation(action.targetRotation.getAngle());
-			sleep(50);
-			while (rlObject.getOrientation() != action.targetRotation.getAngle()) {
-				sleep();
-				rlObject.setOrientation(action.targetRotation.getAngle());
+			if (action.targetRotation == null) {
+				setWait(action.secondsTilNextAction);
+				return;
+			}
+			plugin.clientThread.invokeLater(() -> rlObject.setOrientation(action.targetRotation.getAngle()));
+			if (!sleep(50)) {
+				return;
 			}
 			setWait(action.secondsTilNextAction);
 		});
 	}
 
-	private void sleep() {
-		sleep(30);
-	}
-
-	private void sleep(int millis) {
+	private boolean sleep(int millis) {
 		try {
 			Thread.sleep(millis);
+			return true;
 		} catch (InterruptedException e) {
-			// Ignored, because this happens if the citizen despawns.
+			Thread.currentThread().interrupt();
+			return false;
 		}
 	}
 
 	private void addAnimationAction(ScriptAction action) {
 		submitAction(action, () -> {
+			if (action.animationId == null) {
+				setWait(action.secondsTilNextAction);
+				return;
+			}
+
 			AnimData animData = Util.getAnimData(action.animationId.getId());
 			int loopCount = action.timesToLoop == null ? 1 : action.timesToLoop;
+			int animDurationMillis = animData == null ? 600 : animData.realDurationMillis;
 			for (int i = 0; i < loopCount; i++) {
+				if (Thread.currentThread().isInterrupted() || !isActive()) {
+					return;
+				}
 				setAnimation(action.animationId.getId());
 				try {
-					Thread.sleep(animData.realDurationMillis);
+					Thread.sleep(animDurationMillis);
 				} catch (InterruptedException e) {
-					// Ignored, because this happens if the citizen despawns.
+					Thread.currentThread().interrupt();
+					return;
 				}
 			}
-			setAnimation(idleAnimationId.getId());
+			if (idleAnimationId != null) {
+				setAnimation(idleAnimationId.getId());
+			}
 			setWait(action.secondsTilNextAction);
 		});
 	}
@@ -179,10 +229,10 @@ public class ScriptedCitizen extends Citizen<ScriptedCitizen> {
 		}
 		// We never want thread.sleep(0)
 		seconds = Math.max(0.1f, seconds);
-		try {
-			Thread.sleep((long) (seconds * 1000L));
-		} catch (InterruptedException e) {
-			// Ignored, because this happens if the citizen despawns.
+		long waitMillis = (long) (seconds * 1000L);
+		if (waitMillis > Integer.MAX_VALUE) {
+			waitMillis = Integer.MAX_VALUE;
 		}
+		sleep((int) waitMillis);
 	}
 }

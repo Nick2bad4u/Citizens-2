@@ -10,6 +10,8 @@ public enum AnimationID {
 	SlapHead(4275),
 	HumanIdle(808),
 	HumanWalk(819),
+	HamMemberBoxStand(4193),
+	HamMemberBoxWalk(4194),
 	Woodcutting(2117),
 	HalfLayingDown(1147),
 	Sitting(4114),

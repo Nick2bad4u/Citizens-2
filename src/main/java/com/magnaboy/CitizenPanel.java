@@ -20,10 +20,15 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 import net.runelite.api.GameState;
+import net.runelite.api.NPC;
+import net.runelite.api.NPCComposition;
+import net.runelite.api.Player;
+import net.runelite.api.WorldView;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
@@ -53,6 +58,7 @@ class CitizenPanel extends PluginPanel {
 	private JComboBox<AnimationID> animIdIdleSelect;
 	private JComboBox<AnimationID> animIdMoveSelect;
 	private JTextField modelIdsField;
+	private JTextField npcIdImportField;
 	private JTextField recolorFindField;
 	private JTextField recolorReplaceField;
 	private JComboBox<CardinalDirection> orientationField;
@@ -64,6 +70,7 @@ class CitizenPanel extends PluginPanel {
 	private JTextField translateFieldX;
 	private JTextField translateFieldY;
 	private JTextField translateFieldZ;
+	private JTextField heightOffsetField;
 	private JButton selectWanderBL;
 	private JButton selectWanderTR;
 	private JTextField manualAnimIdIdleSelect;
@@ -175,9 +182,34 @@ class CitizenPanel extends PluginPanel {
 			return "Invalid Model Ids";
 		}
 
+		if (!fieldEmpty(heightOffsetField)) {
+			try {
+				Integer.parseInt(heightOffsetField.getText().trim());
+			} catch (Exception ignored) {
+				return "Invalid Height Offset";
+			}
+		}
+
 		if (csvToIntArray(recolorFindField.getText()).length !=
 			csvToIntArray(recolorReplaceField.getText()).length) {
 			return "Model Color Mismatch";
+		}
+
+		if (manualFieldsToggle.isSelected()) {
+			if (parseIntOrNull(manualAnimIdIdleSelect) == null) {
+				return "Invalid Idle Animation ID";
+			}
+
+			if (selectedType != EntityType.Scenery) {
+				boolean moveRequired = selectedType == EntityType.WanderingCitizen || selectedType == EntityType.ScriptedCitizen;
+				if (moveRequired && parseIntOrNull(manualAnimIdMoveSelect) == null) {
+					return "Invalid Move Animation ID";
+				}
+
+				if (!fieldEmpty(manualAnimIdMoveSelect) && parseIntOrNull(manualAnimIdMoveSelect) == null) {
+					return "Invalid Move Animation ID";
+				}
+			}
 		}
 
 		if (selectedType == EntityType.WanderingCitizen) {
@@ -342,13 +374,13 @@ class CitizenPanel extends PluginPanel {
 			gbc.gridy++;
 			gbc.gridwidth = 2;
 			manualAnimIdIdleSelect = createLabeledComponent(new JTextField(), "Idle Animation", layoutPanel, gbc);
-			manualAnimIdIdleSelect.setText("Not Yet Implemented");
+			manualAnimIdIdleSelect.setToolTipText("Raw animation ID (e.g. 4193)");
 			manualAnimIdIdleSelect.getParent().setVisible(false);
 
 			gbc.gridy++;
 			gbc.gridwidth = 2;
 			manualAnimIdMoveSelect = createLabeledComponent(new JTextField(), "Move Animation", layoutPanel, gbc);
-			manualAnimIdMoveSelect.setText("Not Yet Implemented");
+			manualAnimIdMoveSelect.setToolTipText("Raw animation ID (e.g. 4194)");
 			manualAnimIdMoveSelect.getParent().setVisible(false);
 		}
 
@@ -358,6 +390,42 @@ class CitizenPanel extends PluginPanel {
 			gbc.gridx = 0;
 			modelIdsField = createLabeledComponent(new JTextField(), "Model Ids", layoutPanel, gbc);
 			modelIdsField.setToolTipText("Integers only, separated by commas");
+
+			gbc.gridy++;
+			gbc.gridx = 0;
+			gbc.gridwidth = 2;
+			npcIdImportField = new JTextField();
+			npcIdImportField.setToolTipText("NPC ID to import model IDs and recolors (e.g. 4329)");
+			JButton importNpcIdButton = new JButton("Import NPC ID");
+			importNpcIdButton.setFocusable(false);
+			importNpcIdButton.addActionListener(e -> importNpcDefinitionFromField());
+			createLabeledMultiComponent("NPC Definition", layoutPanel, gbc, npcIdImportField, importNpcIdButton);
+
+			gbc.gridy++;
+			gbc.gridx = 0;
+			gbc.gridwidth = 2;
+
+			JButton debugSpawnModelPartsButton = new JButton("DEBUG: Split Model IDs");
+			debugSpawnModelPartsButton.setFocusable(false);
+			debugSpawnModelPartsButton.addActionListener(e -> {
+				WorldPoint debugBase = selectedPosition;
+				if (selectedEntity != null && selectedEntity.getWorldLocation() != null) {
+					debugBase = selectedEntity.getWorldLocation();
+				}
+
+				plugin.debugSpawnModelParts(
+					debugBase,
+					csvToIntArray(modelIdsField.getText()),
+					csvToIntArray(recolorFindField.getText()),
+					csvToIntArray(recolorReplaceField.getText())
+				);
+			});
+
+			JButton debugClearModelPartsButton = new JButton("DEBUG: Clear Split Parts");
+			debugClearModelPartsButton.setFocusable(false);
+			debugClearModelPartsButton.addActionListener(e -> plugin.clearDebugModelParts());
+
+			createLabeledMultiComponent("Model ID Debug", layoutPanel, gbc, debugSpawnModelPartsButton, debugClearModelPartsButton);
 		}
 
 		// Remarks
@@ -403,6 +471,15 @@ class CitizenPanel extends PluginPanel {
 			createLabeledMultiComponent("Translation", layoutPanel, gbc, translateFieldX, translateFieldY, translateFieldZ);
 		}
 
+		// Height Offset
+		{
+			gbc.gridy++;
+			gbc.gridx = 0;
+			gbc.gridwidth = 2;
+			heightOffsetField = createLabeledComponent(new JTextField(), "Height Offset", layoutPanel, gbc);
+			heightOffsetField.setToolTipText("Optional per-entity vertical offset. Positive raises, negative lowers.");
+		}
+
 		// Wander Region
 		{
 			gbc.gridy++;
@@ -437,11 +514,11 @@ class CitizenPanel extends PluginPanel {
 			spawnButton.setFocusable(false);
 			spawnButton.addActionListener(e -> {
 				if (entityTypeSelection.getSelectedItem() == EntityType.Scenery) {
-					SceneryInfo info = buildSceneryInfo();
+					SceneryInfo info = buildSceneryInfo(selectedPosition);
 					Scenery scenery = CitizenRegion.spawnSceneryFromPanel(info);
 					selectedEntity = scenery;
 				} else {
-					CitizenInfo info = buildCitizenInfo(selectedPosition.getRegionID());
+					CitizenInfo info = buildCitizenInfo(selectedPosition.getRegionID(), selectedPosition);
 					Citizen citizen = CitizenRegion.spawnCitizenFromPanel(info);
 					selectedEntity = citizen;
 				}
@@ -456,23 +533,37 @@ class CitizenPanel extends PluginPanel {
 			updateButton.setText("Update Entity");
 			updateButton.setFocusable(false);
 			updateButton.addActionListener(e -> {
+				if (selectedEntity == null) {
+					return;
+				}
+
+				WorldPoint location = selectedEntity.getWorldLocation();
+				if (location == null) {
+					return;
+				}
+
 				if (selectedEntity.isCitizen()) {
-					CitizenInfo info = buildCitizenInfo(selectedEntity.regionId);
-					if (selectedEntity != null) {
-						info.uuid = selectedEntity.uuid;
-						CitizenRegion.updateEntity(info);
+					CitizenInfo info = buildCitizenInfo(selectedEntity.regionId, location);
+					info.uuid = selectedEntity.uuid;
+					CitizenRegion.updateEntity(info);
+					Entity refreshed = CitizenRegion.getEntity(info.regionId, info.uuid);
+					if (refreshed != null) {
+						selectedEntity = null;
+						setSelectedEntity(refreshed);
 					}
 				} else if (selectedEntity.entityType == EntityType.Scenery) {
-					SceneryInfo info = buildSceneryInfo();
-					if (selectedEntity != null) {
-
-						info.uuid = selectedEntity.uuid;
-						CitizenRegion.updateEntity(info);
+					SceneryInfo info = buildSceneryInfo(location);
+					info.uuid = selectedEntity.uuid;
+					CitizenRegion.updateEntity(info);
+					Entity refreshed = CitizenRegion.getEntity(info.regionId, info.uuid);
+					if (refreshed != null) {
+						selectedEntity = null;
+						setSelectedEntity(refreshed);
 					}
 				}
 
+				CitizenRegion.updateAllEntities();
 				update();
-				plugin.reload();
 			});
 			layoutPanel.add(updateButton, gbc);
 		}
@@ -539,21 +630,173 @@ class CitizenPanel extends PluginPanel {
 		return result;
 	}
 
-	private CitizenInfo buildCitizenInfo(int regionId) {
+	private Integer parseIntOrNull(JTextField field) {
+		if (fieldEmpty(field)) {
+			return null;
+		}
+
+		try {
+			return Integer.parseInt(field.getText().trim());
+		} catch (Exception ignored) {
+			return null;
+		}
+	}
+
+	private int[] shortArrayToUnsignedIntArray(short[] values) {
+		if (values == null || values.length == 0) {
+			return new int[0];
+		}
+
+		int[] result = new int[values.length];
+		for (int i = 0; i < values.length; i++) {
+			result[i] = values[i] & 0xFFFF;
+		}
+
+		return result;
+	}
+
+	private AnimationID getAnimationIdFromRaw(Integer rawAnimationId) {
+		if (rawAnimationId == null) {
+			return null;
+		}
+
+		for (AnimationID value : AnimationID.values()) {
+			if (value.getId() != null && value.getId().equals(rawAnimationId)) {
+				return value;
+			}
+		}
+
+		return null;
+	}
+
+	private int[] findSceneNpcIdleWalkAnimations(int npcId) {
+		WorldView worldView = plugin.client.getTopLevelWorldView();
+		if (worldView == null) {
+			return null;
+		}
+
+		Player localPlayer = plugin.client.getLocalPlayer();
+		WorldPoint playerPoint = localPlayer == null ? null : localPlayer.getWorldLocation();
+
+		NPC closestMatch = null;
+		int bestDistance = Integer.MAX_VALUE;
+
+		for (NPC sceneNpc : worldView.npcs()) {
+			if (sceneNpc == null) {
+				continue;
+			}
+
+			int sceneNpcId = sceneNpc.getId();
+			NPCComposition transformed = sceneNpc.getTransformedComposition();
+			if (transformed != null) {
+				sceneNpcId = transformed.getId();
+			}
+
+			if (sceneNpcId != npcId) {
+				continue;
+			}
+
+			int distance = 0;
+			if (playerPoint != null && sceneNpc.getWorldLocation() != null) {
+				distance = sceneNpc.getWorldLocation().distanceTo2D(playerPoint);
+			}
+
+			if (closestMatch == null || distance < bestDistance) {
+				closestMatch = sceneNpc;
+				bestDistance = distance;
+			}
+		}
+
+		if (closestMatch == null) {
+			return null;
+		}
+
+		return new int[]{closestMatch.getIdlePoseAnimation(), closestMatch.getWalkAnimation()};
+	}
+
+	private void importNpcDefinitionFromField() {
+		Integer npcId = parseIntOrNull(npcIdImportField);
+		if (npcId == null) {
+			return;
+		}
+
+		plugin.clientThread.invokeLater(() -> {
+			NPCComposition npc = plugin.client.getNpcDefinition(npcId);
+			if (npc == null) {
+				return;
+			}
+
+			if (npc.getConfigs() != null) {
+				NPCComposition transformed = npc.transform();
+				if (transformed != null) {
+					npc = transformed;
+				}
+			}
+
+			final int[] models = npc.getModels() == null ? new int[0] : npc.getModels();
+			final int[] recolorFind = shortArrayToUnsignedIntArray(npc.getColorToReplace());
+			final int[] recolorReplace = shortArrayToUnsignedIntArray(npc.getColorToReplaceWith());
+			final String npcName = npc.getName();
+			final int[] idleWalkAnimations = findSceneNpcIdleWalkAnimations(npc.getId());
+
+			SwingUtilities.invokeLater(() -> {
+				modelIdsField.setText(Util.intArrayToString(models));
+				recolorFindField.setText(Util.intArrayToString(recolorFind));
+				recolorReplaceField.setText(Util.intArrayToString(recolorReplace));
+
+				if (idleWalkAnimations != null) {
+					manualFieldsToggle.setSelected(true);
+					manualAnimIdIdleSelect.setText(String.valueOf(idleWalkAnimations[0]));
+					manualAnimIdMoveSelect.setText(String.valueOf(idleWalkAnimations[1]));
+
+					AnimationID importedIdle = getAnimationIdFromRaw(idleWalkAnimations[0]);
+					if (importedIdle != null) {
+						animIdIdleSelect.setSelectedItem(importedIdle);
+					}
+
+					AnimationID importedMove = getAnimationIdFromRaw(idleWalkAnimations[1]);
+					if (importedMove != null) {
+						animIdMoveSelect.setSelectedItem(importedMove);
+					}
+				}
+
+				if (npcName != null && !npcName.trim().isEmpty() && fieldEmpty(entityNameField)) {
+					entityNameField.setText(npcName);
+				}
+
+				update();
+			});
+		});
+	}
+
+	private CitizenInfo buildCitizenInfo(int regionId, WorldPoint location) {
 		CitizenInfo info = new CitizenInfo();
 		info.uuid = UUID.randomUUID();
 		info.regionId = regionId;
 		info.name = entityNameField.getText();
 		info.examineText = examineTextField.getText();
-		info.worldLocation = selectedPosition;
+		info.worldLocation = location;
 		info.entityType = (EntityType) entityTypeSelection.getSelectedItem();
-		info.idleAnimation = (AnimationID) animIdIdleSelect.getSelectedItem();
-		info.moveAnimation = (AnimationID) animIdMoveSelect.getSelectedItem();
+
+		if (manualFieldsToggle.isSelected()) {
+			info.idleAnimationRawId = parseIntOrNull(manualAnimIdIdleSelect);
+			info.idleAnimation = getAnimationIdFromRaw(info.idleAnimationRawId);
+
+			info.moveAnimationRawId = parseIntOrNull(manualAnimIdMoveSelect);
+			info.moveAnimation = getAnimationIdFromRaw(info.moveAnimationRawId);
+		} else {
+			info.idleAnimation = (AnimationID) animIdIdleSelect.getSelectedItem();
+			info.moveAnimation = (AnimationID) animIdMoveSelect.getSelectedItem();
+			info.idleAnimationRawId = null;
+			info.moveAnimationRawId = null;
+		}
+
 		info.modelIds = csvToIntArray(modelIdsField.getText());
 		info.modelRecolorFind = csvToIntArray(recolorFindField.getText());
 		info.modelRecolorReplace = csvToIntArray(recolorReplaceField.getText());
+		info.heightOffset = parseIntOrNull(heightOffsetField);
 		info.baseOrientation = ((CardinalDirection) orientationField.getSelectedItem()).getAngle();
-		info.remarks = remarksField.getText().length() > 0 ? remarksField.getText().split(",", -1) : null;
+		info.remarks = remarksField.getText().length() > 0 ? remarksField.getText().split(",", -1) : new String[]{};
 
 		if (fieldEmpty(scaleFieldX) && fieldEmpty(scaleFieldY) && fieldEmpty(scaleFieldZ)) {
 			info.scale = null;
@@ -582,17 +825,25 @@ class CitizenPanel extends PluginPanel {
 		return info;
 	}
 
-	private SceneryInfo buildSceneryInfo() {
+	private SceneryInfo buildSceneryInfo(WorldPoint location) {
 		SceneryInfo info = new SceneryInfo();
 		info.uuid = UUID.randomUUID();
-		info.regionId = selectedPosition.getRegionID();
+		info.regionId = location.getRegionID();
 		info.entityType = EntityType.Scenery;
-		info.worldLocation = selectedPosition;
+		info.worldLocation = location;
 		info.modelIds = csvToIntArray(modelIdsField.getText());
 		info.modelRecolorFind = csvToIntArray(recolorFindField.getText());
 		info.modelRecolorReplace = csvToIntArray(recolorReplaceField.getText());
+		info.heightOffset = parseIntOrNull(heightOffsetField);
 		info.baseOrientation = ((CardinalDirection) orientationField.getSelectedItem()).getAngle();
-		info.idleAnimation = (AnimationID) animIdIdleSelect.getSelectedItem();
+
+		if (manualFieldsToggle.isSelected()) {
+			info.idleAnimationRawId = parseIntOrNull(manualAnimIdIdleSelect);
+			info.idleAnimation = getAnimationIdFromRaw(info.idleAnimationRawId);
+		} else {
+			info.idleAnimation = (AnimationID) animIdIdleSelect.getSelectedItem();
+			info.idleAnimationRawId = null;
+		}
 
 		if (fieldEmpty(scaleFieldX) && fieldEmpty(scaleFieldY) && fieldEmpty(scaleFieldZ)) {
 			info.scale = null;
@@ -705,16 +956,34 @@ class CitizenPanel extends PluginPanel {
 	}
 
 	public void setSelectedEntity(Entity e) {
+		if (e == null) {
+			selectedEntity = null;
+			clearEditorFields();
+			update();
+			return;
+		}
+
 		if (selectedEntity == e) {
 			selectedEntity = null;
-		} else {
-			selectedEntity = e;
-			selectedPosition = e.getWorldLocation();
+			clearEditorFields();
+			update();
+			return;
 		}
+
+		selectedEntity = e;
+		selectedPosition = e.getWorldLocation();
+		clearEditorFields();
 
 		entityTypeSelection.setSelectedItem(e.entityType);
 		orientationField.setSelectedItem(CardinalDirection.fromInteger(e.baseOrientation));
-		animIdIdleSelect.setSelectedItem(e.idleAnimationId);
+
+		AnimationID idleAnimationFromRaw = e.idleAnimationRawId == null ? null : getAnimationIdFromRaw(e.idleAnimationRawId);
+		animIdIdleSelect.setSelectedItem(idleAnimationFromRaw != null ? idleAnimationFromRaw : e.idleAnimationId);
+		Integer effectiveIdleAnimationId = e.idleAnimationRawId != null
+			? e.idleAnimationRawId
+			: (e.idleAnimationId == null ? null : e.idleAnimationId.getId());
+		manualAnimIdIdleSelect.setText(effectiveIdleAnimationId == null ? "" : String.valueOf(effectiveIdleAnimationId));
+
 		modelIdsField.setText(e.getModelIDsString());
 		recolorFindField.setText(e.getRecolorFindString());
 		recolorReplaceField.setText(e.getRecolorReplaceString());
@@ -731,11 +1000,20 @@ class CitizenPanel extends PluginPanel {
 			scaleFieldZ.setText(String.valueOf(e.scale[2]));
 		}
 
+		heightOffsetField.setText(e.heightOffset == null ? "" : String.valueOf(e.heightOffset));
+
 		if (e.isCitizen()) {
 			Citizen c = (Citizen) e;
 			entityNameField.setText(c.name);
 			examineTextField.setText(c.examine);
-			animIdMoveSelect.setSelectedItem(c.movingAnimationId);
+
+			AnimationID moveAnimationFromRaw = c.movingAnimationRawId == null ? null : getAnimationIdFromRaw(c.movingAnimationRawId);
+			animIdMoveSelect.setSelectedItem(moveAnimationFromRaw != null ? moveAnimationFromRaw : c.movingAnimationId);
+			Integer effectiveMoveAnimationId = c.movingAnimationRawId != null
+				? c.movingAnimationRawId
+				: (c.movingAnimationId == null ? null : c.movingAnimationId.getId());
+			manualAnimIdMoveSelect.setText(effectiveMoveAnimationId == null ? "" : String.valueOf(effectiveMoveAnimationId));
+
 			if (c.remarks != null) {
 				remarksField.setText(String.join(",", c.remarks));
 			}
@@ -753,5 +1031,28 @@ class CitizenPanel extends PluginPanel {
 	public void cleanup() {
 		selectedPosition = null;
 		selectedEntity = null;
+	}
+
+	private void clearEditorFields() {
+		entityNameField.setText("");
+		examineTextField.setText("A Citizen of Gielinor");
+		remarksField.setText("");
+		modelIdsField.setText("");
+		recolorFindField.setText("");
+		recolorReplaceField.setText("");
+		scaleFieldX.setText("");
+		scaleFieldY.setText("");
+		scaleFieldZ.setText("");
+		translateFieldX.setText("");
+		translateFieldY.setText("");
+		translateFieldZ.setText("");
+		heightOffsetField.setText("");
+		manualAnimIdIdleSelect.setText("");
+		manualAnimIdMoveSelect.setText("");
+		animIdIdleSelect.setSelectedItem(AnimationID.HumanIdle);
+		animIdMoveSelect.setSelectedItem(AnimationID.HumanWalk);
+		orientationField.setSelectedItem(CardinalDirection.South);
+		wanderRegionBL = null;
+		wanderRegionTR = null;
 	}
 }

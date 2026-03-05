@@ -13,7 +13,10 @@ catch {
     exit 0
 }
 
-$runtimeRoot = $env:GEFILTERS_RUNTIME_ROOT
+$runtimeRoot = $env:CITIZENS_RUNTIME_ROOT
+if ([string]::IsNullOrWhiteSpace($runtimeRoot)) {
+    $runtimeRoot = $env:GEFILTERS_RUNTIME_ROOT
+}
 if ([string]::IsNullOrWhiteSpace($runtimeRoot)) {
     $runtimeRoot = "C:\Users\Nick\Dropbox\Runescape\IntelljProjectsRunelite\runelitedevNEW\runelite-client"
 }
@@ -41,12 +44,13 @@ $files = @(
     $allCandidates |
     Where-Object {
         $_ -like "src/main/java/com/magnaboy/*" -or
-        $_ -like "src/test/java/com/magnaboy/*"
+        $_ -like "src/test/java/com/magnaboy/*" -or
+        $_ -like "src/main/resources/*"
     }
 )
 
 if ($files.Count -eq 0) {
-    Write-Info "No Citizens-2 source/test file changes to sync."
+    Write-Info "No Citizens-2 source/test/resource file changes to sync."
     exit 0
 }
 

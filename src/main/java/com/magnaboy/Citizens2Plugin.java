@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
@@ -82,6 +84,11 @@ public class Citizens2Plugin extends Plugin {
 	private ClientToolbar clientToolbar;
 	private NavigationButton navButton;
 	private final List<RuneLiteObject> debugModelPartObjects = new ArrayList<>();
+	private long debugSnapshotTickCounter = 0;
+	private long debugTraceTickCounter = 0;
+	private final HashMap<UUID, String> debugLastEntityTraceState = new HashMap<>();
+	private String debugLastSelectedEntitySignature = "";
+	private String debugLastSelectedTileSignature = "";
 
 	@Provides
 	CitizensConfig getConfig(ConfigManager configManager) {
@@ -94,6 +101,11 @@ public class Citizens2Plugin extends Plugin {
 
 	@Override
 	protected void startUp() {
+		debugSnapshotTickCounter = 0;
+		debugTraceTickCounter = 0;
+		debugLastEntityTraceState.clear();
+		debugLastSelectedEntitySignature = "";
+		debugLastSelectedTileSignature = "";
 		log.info("Citizens 2 starting up (gameState={}, devMode={})", client.getGameState(), IS_DEVELOPMENT);
 		log.info("Citizens 2 offsets: baseHeightOffset={}, debugAirlift={}, debugAirliftOffset={}",
 			config.citizenHeightOffset(),
@@ -121,6 +133,8 @@ public class Citizens2Plugin extends Plugin {
 		if (client.getGameState() == GameState.LOGGED_IN && client.getLocalPlayer() != null) {
 			checkRegions();
 			CitizenRegion.updateAllEntities();
+			logAdvancedSnapshot("startup-logged-in");
+			logEntityTransitions("startup-logged-in");
 		} else {
 			log.info("Citizens 2 waiting for LOGGED_IN before region load");
 		}
@@ -281,6 +295,22 @@ public class Citizens2Plugin extends Plugin {
 	@Subscribe
 	public void onGameTick(GameTick tick) {
 		CitizenRegion.updateAllEntities();
+
+		if (isVerboseDebugLoggingEnabled()) {
+			debugSnapshotTickCounter++;
+			int interval = Math.max(1, config.debugVerboseLogIntervalTicks());
+			if (debugSnapshotTickCounter % interval == 0) {
+				logAdvancedSnapshot("tick-" + debugSnapshotTickCounter);
+			}
+		}
+
+		if (isDeepTraceLoggingEnabled()) {
+			debugTraceTickCounter++;
+			int traceInterval = Math.max(1, config.debugTraceIntervalTicks());
+			if (debugTraceTickCounter % traceInterval == 0) {
+				logEntityTransitions("tick-" + debugTraceTickCounter);
+			}
+		}
 	}
 
 	@Subscribe
@@ -290,20 +320,293 @@ public class Citizens2Plugin extends Plugin {
 		}
 
 		String key = event.getKey();
-		if (!"citizenHeightOffset".equals(key)
-			&& !"debugAirliftCitizens".equals(key)
-			&& !"debugAirliftOffset".equals(key)) {
+		boolean offsetChanged = "citizenHeightOffset".equals(key)
+			|| "debugAirliftCitizens".equals(key)
+			|| "debugAirliftOffset".equals(key);
+		boolean verboseChanged = "debugVerboseLogging".equals(key)
+			|| "debugVerboseLogIntervalTicks".equals(key)
+			|| "debugEntityFilter".equals(key);
+		boolean traceChanged = "debugTraceEntityTransitions".equals(key)
+			|| "debugTraceIntervalTicks".equals(key)
+			|| "debugTraceMaxEventsPerInterval".equals(key)
+			|| "debugTraceIncludeMovement".equals(key)
+			|| "debugEntityFilter".equals(key);
+
+		if (!offsetChanged && !verboseChanged && !traceChanged) {
 			return;
 		}
 
 		clientThread.invokeLater(() -> {
-			despawnAll();
-			CitizenRegion.updateAllEntities();
-			log.info("Citizens 2 offsets applied: baseHeightOffset={}, debugAirlift={}, debugAirliftOffset={}",
-				config.citizenHeightOffset(),
-				config.debugAirliftCitizens(),
-				config.debugAirliftOffset());
+			if (offsetChanged) {
+				despawnAll();
+				CitizenRegion.updateAllEntities();
+				log.info("Citizens 2 offsets applied: baseHeightOffset={}, debugAirlift={}, debugAirliftOffset={}",
+					config.citizenHeightOffset(),
+					config.debugAirliftCitizens(),
+					config.debugAirliftOffset());
+			}
+
+			if (verboseChanged) {
+				log.info("Citizens 2 verbose logging updated: enabled={}, intervalTicks={}, filter='{}'",
+					config.debugVerboseLogging(),
+					config.debugVerboseLogIntervalTicks(),
+					config.debugEntityFilter());
+			}
+
+			if (traceChanged) {
+				log.info("Citizens 2 deep trace updated: enabled={}, intervalTicks={}, maxEvents={}, includeMovement={}, filter='{}'",
+					config.debugTraceEntityTransitions(),
+					config.debugTraceIntervalTicks(),
+					config.debugTraceMaxEventsPerInterval(),
+					config.debugTraceIncludeMovement(),
+					config.debugEntityFilter());
+			}
+
+			if (isVerboseDebugLoggingEnabled()) {
+				logAdvancedSnapshot("config-" + key);
+			}
+
+			if (isDeepTraceLoggingEnabled()) {
+				logEntityTransitions("config-" + key);
+			} else {
+				debugLastEntityTraceState.clear();
+				debugLastSelectedEntitySignature = "";
+				debugLastSelectedTileSignature = "";
+			}
 		});
+	}
+
+	private boolean isVerboseDebugLoggingEnabled() {
+		return IS_DEVELOPMENT && config != null && config.debugVerboseLogging();
+	}
+
+	private boolean isDeepTraceLoggingEnabled() {
+		return IS_DEVELOPMENT && config != null && config.debugTraceEntityTransitions();
+	}
+
+	private static String worldPointSummary(WorldPoint worldPoint) {
+		return worldPoint == null ? "none" : Util.worldPointToShortCoord(worldPoint);
+	}
+
+	private String buildEntityTraceSignature(Entity<?> entity, boolean includeMovement) {
+		String location = includeMovement ? worldPointSummary(entity.getWorldLocation()) : "-";
+		int animationId = entity.getAnimationID();
+		String target = "-";
+		if (entity.isCitizen()) {
+			Citizen.Target citizenTarget = ((Citizen<?>) entity).getCurrentTarget();
+			if (citizenTarget != null && citizenTarget.worldDestinationPosition != null) {
+				target = worldPointSummary(citizenTarget.worldDestinationPosition);
+			}
+		}
+
+		return "active=" + entity.isActive()
+			+ "|anim=" + animationId
+			+ "|loc=" + location
+			+ "|target=" + target;
+	}
+
+	private void logEntityTransitions(String reason) {
+		if (!isDeepTraceLoggingEnabled()) {
+			return;
+		}
+
+		String normalizedFilter = normalizeFilter(config.debugEntityFilter());
+		boolean includeMovement = config.debugTraceIncludeMovement();
+		int maxEvents = Math.max(1, config.debugTraceMaxEventsPerInterval());
+		HashMap<UUID, String> nextState = new HashMap<>();
+
+		int considered = 0;
+		int changed = 0;
+		int removed = 0;
+		int emitted = 0;
+
+		for (CitizenRegion region : activeRegions.values()) {
+			if (region == null || region.entities == null) {
+				continue;
+			}
+
+			for (Entity<?> entity : region.entities.values()) {
+				if (entity == null || entity.uuid == null) {
+					continue;
+				}
+
+				if (!matchesEntityFilter(entity, normalizedFilter)) {
+					continue;
+				}
+
+				considered++;
+				String currentSignature = buildEntityTraceSignature(entity, includeMovement);
+				nextState.put(entity.uuid, currentSignature);
+
+				String previousSignature = debugLastEntityTraceState.get(entity.uuid);
+				if (previousSignature == null) {
+					changed++;
+					if (emitted < maxEvents) {
+						log.info("Citizens 2 trace [{}] NEW {} :: {}", reason, entity.debugName(), currentSignature);
+						emitted++;
+					}
+				} else if (!previousSignature.equals(currentSignature)) {
+					changed++;
+					if (emitted < maxEvents) {
+						log.info("Citizens 2 trace [{}] CHG {} :: {} => {}", reason, entity.debugName(), previousSignature, currentSignature);
+						emitted++;
+					}
+				}
+			}
+		}
+
+		for (UUID priorId : debugLastEntityTraceState.keySet()) {
+			if (!nextState.containsKey(priorId)) {
+				removed++;
+				if (emitted < maxEvents) {
+					log.info("Citizens 2 trace [{}] REMOVED uuid={} :: {}", reason, priorId, debugLastEntityTraceState.get(priorId));
+					emitted++;
+				}
+			}
+		}
+
+		Entity<?> selectedEntity = CitizenPanel.selectedEntity;
+		String selectedEntitySignature = selectedEntity == null
+			? "none"
+			: selectedEntity.debugName() + "|" + selectedEntity.uuid + "|" + worldPointSummary(selectedEntity.getWorldLocation());
+		boolean selectedEntityChanged = !selectedEntitySignature.equals(debugLastSelectedEntitySignature);
+		if (selectedEntityChanged) {
+			if (emitted < maxEvents) {
+				log.info("Citizens 2 trace [{}] SELECTED_ENTITY {} => {}", reason, debugLastSelectedEntitySignature, selectedEntitySignature);
+				emitted++;
+			}
+		}
+
+		String selectedTileSignature = worldPointSummary(CitizenPanel.selectedPosition);
+		boolean selectedTileChanged = !selectedTileSignature.equals(debugLastSelectedTileSignature);
+		if (selectedTileChanged) {
+			if (emitted < maxEvents) {
+				log.info("Citizens 2 trace [{}] SELECTED_TILE {} => {}", reason, debugLastSelectedTileSignature, selectedTileSignature);
+				emitted++;
+			}
+		}
+
+		int significantEvents = changed + removed;
+		if (significantEvents > 0 || selectedEntityChanged || selectedTileChanged) {
+			int potentialEvents = significantEvents + (selectedEntityChanged ? 1 : 0) + (selectedTileChanged ? 1 : 0);
+			int suppressed = Math.max(0, potentialEvents - emitted);
+			log.info("Citizens 2 trace summary [{}]: considered={}, changed={}, removed={}, emitted={}, suppressed={}, filter='{}', includeMovement={}",
+				reason,
+				considered,
+				changed,
+				removed,
+				emitted,
+				suppressed,
+				normalizedFilter,
+				includeMovement);
+		}
+
+		debugLastEntityTraceState.clear();
+		debugLastEntityTraceState.putAll(nextState);
+		debugLastSelectedEntitySignature = selectedEntitySignature;
+		debugLastSelectedTileSignature = selectedTileSignature;
+	}
+
+	private static String normalizeFilter(String filter) {
+		if (filter == null) {
+			return "";
+		}
+		return filter.trim().toLowerCase(Locale.ROOT);
+	}
+
+	private static boolean matchesEntityFilter(Entity<?> entity, String normalizedFilter) {
+		if (normalizedFilter == null || normalizedFilter.isEmpty()) {
+			return true;
+		}
+
+		if (entity == null) {
+			return false;
+		}
+
+		if (entity.name != null && entity.name.toLowerCase(Locale.ROOT).contains(normalizedFilter)) {
+			return true;
+		}
+
+		return entity.uuid != null && entity.uuid.toString().toLowerCase(Locale.ROOT).contains(normalizedFilter);
+	}
+
+	private void logAdvancedSnapshot(String reason) {
+		if (!isVerboseDebugLoggingEnabled()) {
+			return;
+		}
+
+		String normalizedFilter = normalizeFilter(config.debugEntityFilter());
+		int totalEntities = 0;
+		int activeEntities = 0;
+		int citizenCount = 0;
+		int sceneryCount = 0;
+		int stationaryCount = 0;
+		int wanderingCount = 0;
+		int scriptedCount = 0;
+		List<String> filterMatches = new ArrayList<>();
+
+		for (CitizenRegion region : activeRegions.values()) {
+			if (region == null || region.entities == null) {
+				continue;
+			}
+
+			for (Entity<?> entity : region.entities.values()) {
+				if (entity == null) {
+					continue;
+				}
+
+				totalEntities++;
+				if (entity.isActive()) {
+					activeEntities++;
+				}
+
+				if (entity.isCitizen()) {
+					citizenCount++;
+					if (entity.entityType == EntityType.StationaryCitizen) {
+						stationaryCount++;
+					} else if (entity.entityType == EntityType.WanderingCitizen) {
+						wanderingCount++;
+					} else if (entity.entityType == EntityType.ScriptedCitizen) {
+						scriptedCount++;
+					}
+				} else {
+					sceneryCount++;
+				}
+
+				if (!normalizedFilter.isEmpty() && filterMatches.size() < 8 && matchesEntityFilter(entity, normalizedFilter)) {
+					filterMatches.add(entity.debugName());
+				}
+			}
+		}
+
+		String selectedSummary = "none";
+		Entity<?> selected = CitizenPanel.selectedEntity;
+		if (selected != null) {
+			String selectedLoc = selected.getWorldLocation() == null ? "unknown" : Util.worldPointToShortCoord(selected.getWorldLocation());
+			selectedSummary = selected.debugName() + " loc=" + selectedLoc + " active=" + selected.isActive();
+			if (selected.isCitizen()) {
+				Citizen.Target target = ((Citizen<?>) selected).getCurrentTarget();
+				if (target != null && target.worldDestinationPosition != null) {
+					selectedSummary += " target=" + Util.worldPointToShortCoord(target.worldDestinationPosition);
+				}
+			}
+		}
+
+		log.info("Citizens 2 debug snapshot [{}]: regions={}, entities(total/active)={}/{}, citizens={}, scenery={}, stationary={}, wandering={}, scripted={}, selected={}",
+			reason,
+			activeRegions.size(),
+			totalEntities,
+			activeEntities,
+			citizenCount,
+			sceneryCount,
+			stationaryCount,
+			wanderingCount,
+			scriptedCount,
+			selectedSummary);
+
+		if (!normalizedFilter.isEmpty()) {
+			log.info("Citizens 2 debug filter '{}' match sample (max 8): {}", normalizedFilter, filterMatches);
+		}
 	}
 
 	@Subscribe
@@ -489,6 +792,11 @@ public class Citizens2Plugin extends Plugin {
 
 	private void cleanupAll() {
 		shuttingDown = true;
+		debugSnapshotTickCounter = 0;
+		debugTraceTickCounter = 0;
+		debugLastEntityTraceState.clear();
+		debugLastSelectedEntitySignature = "";
+		debugLastSelectedTileSignature = "";
 		entitiesAreReady = false;
 		clearDebugModelParts();
 		activeRegions.clear();

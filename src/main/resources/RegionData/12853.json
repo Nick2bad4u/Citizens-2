@@ -47,40 +47,6 @@
       "idleAnimation": "Fletching"
     },
     {
-      "name": "Sefton",
-      "examineText": "I wonder what he did wrong.",
-      "remarks": [
-        "Help me!"
-      ],
-      "uuid": "a41802e8-e081-4300-ae82-1c3b34913ea1",
-      "regionId": 12853,
-      "entityType": "StationaryCitizen",
-      "worldLocation": {
-        "x": 3228,
-        "y": 3407,
-        "plane": 0
-      },
-      "modelIds": [
-        391,
-        246,
-        28515,
-        26632,
-        54275,
-        54275,
-        26630
-      ],
-      "baseOrientation": 1024,
-      "modelRecolorFind": [
-        8741,
-        25238
-      ],
-      "modelRecolorReplace": [
-        21541,
-        7331
-      ],
-      "idleAnimation": "HumanIdle"
-    },
-    {
       "name": "Smithing apprentice",
       "examineText": "A smith in training.",
       "remarks": [
@@ -173,33 +139,6 @@
         918,
         902
       ],
-      "idleAnimation": "Sitting"
-    },
-    {
-      "name": "Guard",
-      "examineText": "He\u0027s on a break.",
-      "remarks": [],
-      "uuid": "51473389-e193-4610-a764-b5717d6585fa",
-      "regionId": 12853,
-      "entityType": "StationaryCitizen",
-      "worldLocation": {
-        "x": 3224,
-        "y": 3399,
-        "plane": 0
-      },
-      "modelIds": [
-        25671,
-        25685,
-        25684
-      ],
-      "baseOrientation": 1536,
-      "translate": [
-        0.0,
-        -0.2,
-        0.0
-      ],
-      "modelRecolorFind": [],
-      "modelRecolorReplace": [],
       "idleAnimation": "Sitting"
     },
     {
@@ -321,36 +260,6 @@
         94
       ],
       "idleAnimation": "Sitting"
-    },
-    {
-      "name": "Pryce",
-      "examineText": "He\u0027s not having a good day.",
-      "remarks": [
-        "Woe is me...",
-        "I thought my plan was flawless...",
-        "I didn\u0027t think we\u0027d get caught..."
-      ],
-      "uuid": "6b4cbab3-e8c4-46bd-bcd5-a20a3157fbca",
-      "regionId": 12853,
-      "entityType": "StationaryCitizen",
-      "worldLocation": {
-        "x": 3230,
-        "y": 3407,
-        "plane": 0
-      },
-      "modelIds": [
-        217,
-        246,
-        25676,
-        14373,
-        54275,
-        12138,
-        26630
-      ],
-      "baseOrientation": 1024,
-      "modelRecolorFind": [],
-      "modelRecolorReplace": [],
-      "idleAnimation": "Crying"
     },
     {
       "name": "Rat",
@@ -709,51 +618,6 @@
         43096,
         43906,
         37776
-      ],
-      "idleAnimation": "Sitting"
-    },
-    {
-      "name": "H.A.M. Member",
-      "examineText": "A member of H.A.M.",
-      "remarks": [],
-      "moveAnimation": "HumanWalk",
-      "uuid": "94eee96a-3e46-4b62-8e62-7cd9c45d315c",
-      "regionId": 12853,
-      "entityType": "StationaryCitizen",
-      "worldLocation": {
-        "x": 3218,
-        "y": 3399,
-        "plane": 0
-      },
-      "modelIds": [
-        27154,
-        176,
-        247,
-        185,
-        265,
-        308,
-        5434,
-        5430,
-        5433,
-        317
-      ],
-      "baseOrientation": 1024,
-      "translate": [
-        0.0,
-        -0.2,
-        0.0
-      ],
-      "modelRecolorFind": [
-        8741,
-        25238,
-        7952,
-        4550
-      ],
-      "modelRecolorReplace": [
-        61347,
-        61347,
-        61347,
-        4564
       ],
       "idleAnimation": "Sitting"
     },
@@ -1713,6 +1577,171 @@
       "modelRecolorFind": [],
       "modelRecolorReplace": [],
       "idleAnimation": "CurledUp"
+    },
+    {
+      "name": "H.A.M. Member",
+      "examineText": "A member of H.A.M.",
+      "remarks": [],
+      "moveAnimation": "HumanWalk",
+      "uuid": "94eee96a-3e46-4b62-8e62-7cd9c45d315c",
+      "regionId": 12853,
+      "entityType": "StationaryCitizen",
+      "worldLocation": {
+        "x": 3218,
+        "y": 3399,
+        "plane": 0
+      },
+      "modelIds": [
+        27154,
+        176,
+        247,
+        185,
+        265,
+        308,
+        5434,
+        5430,
+        5433,
+        317
+      ],
+      "baseOrientation": 1024,
+      "translate": [
+        0.0,
+        -0.1,
+        0.0
+      ],
+      "modelRecolorFind": [
+        8741,
+        25238,
+        7952,
+        4550
+      ],
+      "modelRecolorReplace": [
+        61347,
+        61347,
+        61347,
+        4564
+      ],
+      "idleAnimation": "Sitting"
+    },
+    {
+      "name": "Guard",
+      "examineText": "He\u0027s on a break.",
+      "remarks": [],
+      "moveAnimation": "HumanWalk",
+      "uuid": "51473389-e193-4610-a764-b5717d6585fa",
+      "regionId": 12853,
+      "entityType": "StationaryCitizen",
+      "worldLocation": {
+        "x": 3224,
+        "y": 3399,
+        "plane": 0
+      },
+      "modelIds": [
+        25671,
+        25685,
+        317
+      ],
+      "baseOrientation": 1536,
+      "translate": [
+        0.0,
+        0.1,
+        0.0
+      ],
+      "modelRecolorFind": [],
+      "modelRecolorReplace": [],
+      "idleAnimation": "Sitting"
+    },
+    {
+      "name": "Sefton",
+      "examineText": "I wonder what he did wrong.",
+      "remarks": [
+        "Help me!"
+      ],
+      "moveAnimation": "HumanWalk",
+      "uuid": "a41802e8-e081-4300-ae82-1c3b34913ea1",
+      "regionId": 12853,
+      "entityType": "StationaryCitizen",
+      "worldLocation": {
+        "x": 3228,
+        "y": 3407,
+        "plane": 0
+      },
+      "modelIds": [
+        217,
+        246,
+        25676,
+        14373,
+        10218,
+        12138,
+        181
+      ],
+      "baseOrientation": 1024,
+      "modelRecolorFind": [
+        25238,
+        8741,
+        8860,
+        16,
+        8,
+        922
+      ],
+      "modelRecolorReplace": [
+        11146,
+        8481,
+        8472,
+        8481,
+        8472,
+        35908
+      ],
+      "idleAnimation": "Crying"
+    },
+    {
+      "name": "Pryce",
+      "examineText": "He\u0027s not having a good day.",
+      "remarks": [
+        "Woe is me...",
+        "I thought my plan was flawless...",
+        "I didn\u0027t think we\u0027d get caught..."
+      ],
+      "moveAnimation": "HumanWalk",
+      "uuid": "6b4cbab3-e8c4-46bd-bcd5-a20a3157fbca",
+      "regionId": 12853,
+      "entityType": "StationaryCitizen",
+      "worldLocation": {
+        "x": 3230,
+        "y": 3407,
+        "plane": 0
+      },
+      "modelIds": [
+        12749,
+        6848,
+        236,
+        253,
+        302,
+        3190,
+        159,
+        10218,
+        12772,
+        28285,
+        185
+      ],
+      "baseOrientation": 1024,
+      "modelRecolorFind": [
+        25238,
+        4626,
+        933,
+        54397,
+        8741,
+        43072
+      ],
+      "modelRecolorReplace": [
+        6932,
+        1934,
+        792,
+        7386,
+        10301,
+        4550
+      ],
+      "idleAnimation": "HumanWithStickIdle"
     }
   ],
   "sceneryRoster": [

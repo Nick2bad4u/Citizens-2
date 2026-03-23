@@ -8,7 +8,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.HashMap;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public final class ScriptLoader {
 	private final static HashMap<String, ScriptFile> scriptCache = new HashMap<>();
 
@@ -33,7 +35,7 @@ public final class ScriptLoader {
 			script.name = scriptName;
 			return script;
 		} catch (IOException e) {
-			System.out.println("Script Loading Error: " + e.getMessage());
+			log.warn("Failed to load citizen script '{}'", scriptName, e);
 			return null;
 		}
 	}
